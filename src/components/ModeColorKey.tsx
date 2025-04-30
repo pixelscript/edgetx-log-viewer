@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import { Group, ColorSwatch, Text, Paper, useMantineTheme, Stack, Box } from '@mantine/core';
+import { useSelector, useDispatch } from 'react-redux';
+import { Group, ColorSwatch, Text, Paper, useMantineTheme, Stack, Box, Select } from '@mantine/core';
 import { RootState } from '../state/store';
-import { logValueTitles } from '../consts/logValueTitles';
-
+import { logValueTitles, LogValueInfo } from '../consts/logValueTitles';
+import { setSelectedField } from '../state/logsSlice';
 const modeColorsData = [
   { mode: 'OK', color: 'green' },
   { mode: 'CRUZ', color: 'orange' },
@@ -16,18 +16,30 @@ const modeColorsData = [
 ];
 
 const formatValue = (value: number | null): string => {
-    if (value === null) return 'N/A';
-    const precision = Math.abs(value) > 10 ? 1 : 2;
-    return value.toFixed(precision);
+  if (value === null) return 'N/A';
+  const precision = Math.abs(value) > 10 ? 1 : 2;
+  return value.toFixed(precision);
 };
-
 
 function ModeColorKey() {
   const theme = useMantineTheme();
   const { selectedField, loadedLogs, selectedLogFilename } = useSelector((state: RootState) => state.logs);
-
   const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
+  const numericalFields = currentLog?.numericalFields ?? [];
+  const dispatch = useDispatch();
   const logEntries = currentLog?.entries ?? [];
+  const selectData = numericalFields.map(field => {
+    const info: LogValueInfo | undefined = logValueTitles[field];
+    const label = info
+      ? `${info.title}${info.unit ? ` (${info.unit})` : ''} - ${info.description}`
+      : field;
+    return { value: field, label: label };
+  });
+
+  const handleFieldChange = (value: string | null) => {
+    dispatch(setSelectedField(value));
+  };
+
 
   const { minVal, maxVal } = useMemo(() => {
     if (!selectedField || logEntries.length === 0) {
@@ -55,12 +67,24 @@ function ModeColorKey() {
         <Text size="lg" fw={500} mb="sm">
           Value Color Key: {title}{unit}
         </Text>
+        {numericalFields.length > 0 && (
+          <Select
+            label="Color Path By"
+            placeholder="Select field (or use Mode colors)"
+            value={selectedField}
+            onChange={handleFieldChange}
+            data={selectData}
+            clearable
+            mb="md"
+            disabled={!currentLog}
+          />
+        )}
         <Stack gap="xs">
-           <Box h={20} style={{ background: gradient, borderRadius: theme.radius.sm }} />
-           <Group justify="space-between">
-             <Text size="xs">{formatValue(minVal)}</Text>
-             <Text size="xs">{formatValue(maxVal)}</Text>
-           </Group>
+          <Box h={20} style={{ background: gradient, borderRadius: theme.radius.sm }} />
+          <Group justify="space-between">
+            <Text size="xs">{formatValue(minVal)}</Text>
+            <Text size="xs">{formatValue(maxVal)}</Text>
+          </Group>
         </Stack>
       </Paper>
     );
@@ -72,6 +96,18 @@ function ModeColorKey() {
       <Text size="lg" fw={500} mb="sm">
         Mode Color Key
       </Text>
+      {numericalFields.length > 0 && (
+        <Select
+          label="Color Path By"
+          placeholder="Select field (or use Mode colors)"
+          value={selectedField}
+          onChange={handleFieldChange}
+          data={selectData}
+          clearable
+          mb="md"
+          disabled={!currentLog}
+        />
+      )}
       <Group gap="md">
         {modeColorsData.map((item) => (
           <Group key={item.mode} gap="xs" wrap="nowrap">
