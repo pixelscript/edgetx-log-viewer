@@ -11,7 +11,14 @@ A web application for visualizing EdgeTX flight log data.
 *   Select specific log entries to view details.
 *   Export processed data
 
-## Getting Started
+## Enable telemetry logs
+
+How to enable telemetry logs on your EdgeTX / OpenTX device
+
+* Blog - [https://oscarliang.com/log-telemetry](https://oscarliang.com/log-telemetry)
+* Video - [EdgeTX Setting Up Telemetry Data Logging to your Radio](https://youtu.be/SsbnONkErbc?t=68)
+
+## Building locally
 
 ### Prerequisites
 
