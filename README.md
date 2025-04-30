@@ -6,12 +6,11 @@ A web application for visualizing EdgeTX flight log data.
 
 ## Features
 
-*   Upload EdgeTX `.csv` log files.
-*   View log data in a table format.
+*   Can import multiple EdgeTX / OpenTX `.csv` log files.
+*   Each log is sortable by model, date, duration, max altitude and max distance
 *   Visualize flight paths on a 3D globe.
-*   Display key flight statistics.
-*   Select specific log entries to view details.
-*   Export processed data
+*   Line color can show flight mode or any numerical log value.
+*   Logs can be exported to GPX or KML format along with an altitude offset.
 
 ## Enable telemetry logs
 
