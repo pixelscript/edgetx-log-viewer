@@ -1,5 +1,5 @@
 import "@mantine/core/styles.css";
-import { AppShell, Burger, Group, Text, Stack, Title, Button } from "@mantine/core";
+import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs } from "@mantine/core"; // Import Tabs
 import { useDisclosure } from '@mantine/hooks';
 import { useSelector } from "react-redux";
 import { RootState } from "../state/store";
@@ -7,6 +7,7 @@ import LogFileUploader from "./LogFileUploader";
 import LogSelectorTable from "./LogSelectorTable";
 import EarthViewer from "./EarthViewer";
 import ModeColorKey from "./ModeColorKey";
+import PlaybackControls from "./PlaybackControls"; // Import PlaybackControls
 import FlightStatsDisplay from "./FlightStatsDisplay";
 import { IconDownload } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
@@ -57,11 +58,27 @@ export default function Main() {
 
         <AppShell.Main>
         <div style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
-          <Stack style={{ flex: 1 }}>
-            <FlightStatsDisplay />
-            <ModeColorKey />
-            <EarthViewer/>
-          </Stack>
+            {/* Use Tabs component here */}
+            <Tabs defaultValue="stats" style={{ flexShrink: 0 }}> {/* Add flexShrink to prevent tabs from shrinking */}
+              <Tabs.List>
+                <Tabs.Tab value="stats">Stats</Tabs.Tab>
+                <Tabs.Tab value="playback">Playback</Tabs.Tab>
+              </Tabs.List>
+
+              <Tabs.Panel value="stats" pt="xs"> {/* Add padding top */}
+                <FlightStatsDisplay />
+              </Tabs.Panel>
+
+              <Tabs.Panel value="playback" pt="xs"> {/* Add padding top */}
+                <PlaybackControls /> {/* Use PlaybackControls component */}
+              </Tabs.Panel>
+            </Tabs>
+
+            {/* Keep ModeColorKey and EarthViewer below the tabs */}
+            <Stack style={{ flex: 1, marginTop: 'md' }}> {/* Add marginTop and keep flex: 1 */}
+              <ModeColorKey />
+              <EarthViewer />
+            </Stack>
           </div>
         </AppShell.Main>
       </AppShell>

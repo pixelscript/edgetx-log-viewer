@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { EarthSphere } from './EarthSphere';
 import { PathLines } from './PathLines';
+import PlaybackPathLine from './PlaybackPathLine';
 import { Lights } from './Lights';
 import { CameraController } from './CameraController';
 
@@ -15,6 +16,7 @@ const EarthScene = ({
       <Lights />
       <EarthSphere textureUrl={textureUrl} />
       <PathLines />
+      <PlaybackPathLine />
       <CameraController />
     </Canvas>
   );

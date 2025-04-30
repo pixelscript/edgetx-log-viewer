@@ -40,6 +40,7 @@ const initialState: LogsState = {
   selectedLogFilename: null,
   selectedField: null,
   targetCenter: null,
+  playbackProgress: 0, // Initialize playback progress
 };
 
 const logsSlice = createSlice({
@@ -92,8 +93,20 @@ const logsSlice = createSlice({
         }
       }
     },
+    setPlaybackProgress: (state, action: PayloadAction<number>) => {
+      if (state.selectedLogFilename) {
+        const log = state.loadedLogs[state.selectedLogFilename];
+        if (log) {
+          // Clamp progress between 0 and the number of entries - 1
+          const maxProgress = log.entries.length > 0 ? log.entries.length - 1 : 0;
+          state.playbackProgress = Math.max(0, Math.min(action.payload, maxProgress));
+        }
+      } else {
+        state.playbackProgress = 0; // Reset if no log selected
+      }
+    },
   },
 });
 
-export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter} = logsSlice.actions;
+export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter, setPlaybackProgress } = logsSlice.actions; // Export new action
 export default logsSlice.reducer;
