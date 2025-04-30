@@ -7,7 +7,7 @@ import { RootState } from '../state/store';
 import { latLongToCartesian } from '../utils';
 import { EARTH_RADIUS } from '../consts';
 import { useThree } from '@react-three/fiber';
-import type { LogEntry, GPS, XYZ } from '../state/types/logTypes';
+import type { LogEntry, GPS } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
     return entries
