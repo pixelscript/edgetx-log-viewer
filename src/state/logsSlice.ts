@@ -39,12 +39,16 @@ const initialState: LogsState = {
   loadedLogs: {},
   selectedLogFilename: null,
   selectedField: null,
+  targetCenter: null,
 };
 
 const logsSlice = createSlice({
   name: 'logs',
   initialState,
   reducers: {
+    setTargetCenter: (state, action: PayloadAction<any>) => {
+      state.targetCenter = action.payload;
+    },
     addLog: (state, action: PayloadAction<{ filename: string; entries: LogEntry[] }>) => {
       const { filename, entries } = action.payload;
       if (entries.length > 0 && !state.loadedLogs[filename]) {
@@ -91,5 +95,5 @@ const logsSlice = createSlice({
   },
 });
 
-export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog } = logsSlice.actions;
+export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter} = logsSlice.actions;
 export default logsSlice.reducer;

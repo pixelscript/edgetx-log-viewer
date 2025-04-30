@@ -2,13 +2,13 @@
 import { OrbitControls} from '@react-three/drei';
 import { useEffect, useRef, useMemo } from 'react';
 import * as THREE from 'three';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
 import { latLongToCartesian } from '../utils';
 import { EARTH_RADIUS } from '../consts';
 import { useThree } from '@react-three/fiber';
 import type { LogEntry, GPS } from '../state/types/logTypes';
-
+import { setTargetCenter } from '../state/logsSlice';
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
     return entries
         .map(entry => {
@@ -26,6 +26,7 @@ const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; lon
 export const CameraController = () => {
   const controlsRef = useRef<any>(null);
   const { camera, gl } = useThree();
+  const dispatch = useDispatch();
   const { selectedLogFilename, loadedLogs } = useSelector((state: RootState) => state.logs);
   const pathCoordinates = useMemo(() => {
     const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
@@ -51,6 +52,7 @@ export const CameraController = () => {
       const startCoord = pathCoordinates[0];
       camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
     }
+    dispatch(setTargetCenter(targetCenter));
     if (controlsRef.current) {
         controlsRef.current.target.copy(targetCenter);
         camera.position.copy(camPos);

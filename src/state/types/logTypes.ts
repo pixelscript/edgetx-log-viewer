@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export type LogValue = string | number | { lat: number; long: number };
 
 export type LogEntry = {
@@ -23,6 +25,7 @@ export type LogsState = {
   loadedLogs: Record<string, LoadedLog>;
   selectedLogFilename: string | null;
   selectedField: string | null;
+  targetCenter: THREE.Vector3 | null;
 };
 
 export type FlightStats = {
