@@ -1,0 +1,37 @@
+{
+  "name": "edgetx-log-viewer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mantine/core": "7.17.5",
+    "@mantine/dropzone": "^7.17.5",
+    "@mantine/hooks": "7.17.5",
+    "@react-three/drei": "^10.0.6",
+    "@react-three/fiber": "^9.1.2",
+    "@reduxjs/toolkit": "^2.6.1",
+    "@tabler/icons-react": "^3.31.0",
+    "camelcase": "^8.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.2.0",
+    "three": "^0.175.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "@types/three": "^0.175.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "postcss": "^8.5.3",
+    "postcss-preset-mantine": "1.17.0",
+    "postcss-simple-vars": "^7.0.1",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2"
+  },
+  "packageManager": "yarn@4.8.1"
+}

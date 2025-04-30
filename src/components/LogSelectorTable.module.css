@@ -1,0 +1,34 @@
+.row {
+  cursor: pointer;
+}
+
+.selectedRow {
+  background-color: var(--mantine-color-blue-light) !important; /* Use Mantine theme color */
+  cursor: pointer;
+}
+
+.selectedRow td {
+    font-weight: bold;
+}
+.th {
+  padding: 0 !important;
+}
+
+.control {
+  width: 100%;
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+
+  &:hover {
+    background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+  }
+}
+
+.icon {
+  width: rem(21px);
+  height: rem(21px);
+  border-radius: rem(21px);
+}
+
+.labelText {
+    font-size: var(--mantine-font-size-sm);
+}
