@@ -2,6 +2,8 @@
 
 A web application for visualizing EdgeTX flight log data.
 
+![Screenshot of the UI](screenshot.png)
+
 ## Features
 
 *   Upload EdgeTX `.csv` log files.
