@@ -1,0 +1,17 @@
+.icon {
+  &.dark {
+    display: block;
+
+    [data-mantine-color-scheme='dark'] & {
+      display: none;
+    }
+  }
+
+  &.light {
+    display: none;
+
+    [data-mantine-color-scheme='dark'] & {
+      display: block;
+    }
+  }
+}

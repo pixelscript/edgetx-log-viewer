@@ -11,6 +11,7 @@ import FlightStatsDisplay from "./FlightStatsDisplay";
 import { IconDownload } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
 import ExportModal from './ExportModal';
+import { ThemeToggle } from './ThemeToggle';
 
 export default function Main() {
   const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
@@ -33,16 +34,17 @@ export default function Main() {
               <Text size="sm" c="dimmed" ml="md"> - {selectedLogFilename}</Text>
             )}
             <Group justify="flex-end" style={{ flex: 1 }}>
-            {selectedLogFilename && (
-              <Button
-                variant="light"
-                leftSection={<IconDownload size={14} />}
-                onClick={openExportModal}
-                ml="xs"
-              >
-                Export Log
-              </Button>
-            )}
+              <ThemeToggle />
+              {selectedLogFilename && (
+                <Button
+                  variant="light"
+                  leftSection={<IconDownload size={14} />}
+                  onClick={openExportModal}
+                  ml="xs"
+                >
+                  Export Log
+                </Button>
+              )}
             </Group>
 
           </Group>
