@@ -7,7 +7,7 @@ import { RootState } from '../state/store';
 import { latLongToCartesian } from '../utils';
 import { EARTH_RADIUS } from '../consts';
 import { useThree } from '@react-three/fiber';
-import type { LogEntry, GPS } from '../state/types/logTypes';
+import type { LogEntry, GPS, XYZ } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
     return entries
@@ -52,7 +52,7 @@ export const CameraController = () => {
       const startCoord = pathCoordinates[0];
       camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
     }
-    dispatch(setTargetCenter(targetCenter));
+    dispatch(setTargetCenter({x: targetCenter.x, y: targetCenter.y, z: targetCenter.z}));
     if (controlsRef.current) {
         controlsRef.current.target.copy(targetCenter);
         camera.position.copy(camPos);
