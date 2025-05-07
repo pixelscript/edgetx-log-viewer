@@ -7,7 +7,6 @@ import { store } from "./state/store";
 import { theme } from "./theme";
 import Main from "./components/Main";
 import ErrorModal from "./components/ErrorModal";
-import Sandbox from "./components/Sandbox";
 
 export default function App() {
 

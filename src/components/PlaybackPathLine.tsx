@@ -60,18 +60,17 @@ const PlaybackPathLine: React.FC = () => {
     return currentFlightSegment[dataIndex];
   }, [currentFlightSegment, progress]);
 
-
   if (!lineGeometry && !currentPlaneData) {
     return null;
   }
 
   const clampedPlaneScale = 5
 
-
   return (
     <>
-      {lineGeometry && linePoints.length >= 2 && (
-        <line geometry={lineGeometry}>
+      {lineGeometry && (
+        <line>
+          <primitive object={lineGeometry} attach="geometry" />
           <lineBasicMaterial attach="material" color={'white'} linewidth={1} linecap={'round'} linejoin={'round'} />
         </line>
       )}
@@ -79,15 +78,13 @@ const PlaybackPathLine: React.FC = () => {
         <mesh
           position={currentPlaneData.position}
           quaternion={currentPlaneData.quaternion}
-         
-          >
-            <mesh rotation={[currentPlaneData.roll, -currentPlaneData.yaw-Math.PI, -currentPlaneData.pitch]}>
-
+        >
+          <mesh rotation={[currentPlaneData.roll, -currentPlaneData.yaw - Math.PI, -currentPlaneData.pitch]}>
             <mesh name="planeBody">
               <boxGeometry args={[clampedPlaneScale * 2, clampedPlaneScale * 0.5, clampedPlaneScale * 0.5]} />
               <meshStandardMaterial color={'#cccccc'} roughness={0.5} metalness={0.2} />
             </mesh>
-            <mesh name="plan  eWing" position={[0, 0, 0]}>
+            <mesh name="planeWing" position={[0, 0, 0]}>
               <boxGeometry args={[clampedPlaneScale * 0.5, clampedPlaneScale * 0.2, clampedPlaneScale * 3]} />
               <meshStandardMaterial color={'#aaaaaa'} roughness={0.5} metalness={0.2} />
             </mesh>
@@ -95,7 +92,7 @@ const PlaybackPathLine: React.FC = () => {
               <boxGeometry args={[clampedPlaneScale * 0.4, clampedPlaneScale * 0.6, clampedPlaneScale * 0.2]} />
               <meshStandardMaterial color={'#999999'} roughness={0.5} metalness={0.2} />
             </mesh>
-            </mesh>
+          </mesh>
         </mesh>
       )}
       {allFlightDataPoints.length > 0 && (

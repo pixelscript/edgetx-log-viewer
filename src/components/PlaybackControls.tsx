@@ -1,20 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Slider, Button, Group, Box, Textarea } from '@mantine/core';
+import { Slider, Button, Group, Box, Select } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
 import { setPlaybackProgress } from '../state/logsSlice';
-
+const speedOptions = [
+  { value: '1', label: '1x' },
+  { value: '2', label: '2x' },
+  { value: '3', label: '3x' },
+  { value: '4', label: '4x' },
+  { value: '5', label: '5x' },
+  { value: '10', label: '10x' },
+  { value: '20', label: '20x' },
+  { value: '30', label: '30x' },
+  { value: '40', label: '40x' },
+  { value: '50', label: '50x' },
+  { value: '100', label: '100x' },
+  { value: '200', label: '200x' },
+  { value: '300', label: '300x' },
+  { value: '400', label: '400x' },
+  { value: '500', label: '500x' },
+]
 const PlaybackControls: React.FC = () => {
   const dispatch = useDispatch();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [multiplier, setMultiplier] = useState(1);
   const progress = useSelector((state: RootState) => state.logs.playbackProgress);
   const selectedLogData = useSelector((state: RootState) =>
     state.logs.selectedLogFilename ? state.logs.loadedLogs[state.logs.selectedLogFilename] : null
   );
   const duration = selectedLogData?.entries.length ? selectedLogData.entries.length - 1 : 100;
-
-  // Timer interval reference
   const intervalRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePlayPause = useCallback(() => {
@@ -36,7 +51,7 @@ const PlaybackControls: React.FC = () => {
           return;
       }
       intervalRef.current = setInterval(() => {
-        dispatch(setPlaybackProgress(progress + 1));
+        dispatch(setPlaybackProgress(progress + multiplier));
       }, 0);
     } else {
       if (intervalRef.current) {
@@ -66,6 +81,16 @@ const PlaybackControls: React.FC = () => {
   return (
     <Box p="md">
       <Group>
+        <Select
+          size="xs"
+          data={speedOptions}
+          defaultValue="1"
+          onChange={(value) => {
+            if (value) {
+              setMultiplier(parseInt(value));
+            }
+          }}
+        />
         <Button onClick={handlePlayPause} variant="light" size="xs" disabled={!selectedLogData || progress >= duration}>
           {isPlaying ? <IconPlayerPause size={16} /> : <IconPlayerPlay size={16} />}
         </Button>
@@ -80,11 +105,6 @@ const PlaybackControls: React.FC = () => {
           disabled={!selectedLogData}
         />
       </Group>
-      {/* <Textarea
-          label="Log"
-          value={JSON.stringify(selectedLogData?.entries?.[progress], null, 2)}
-          autosize={true}
-        /> */}
     </Box>
   );
 };

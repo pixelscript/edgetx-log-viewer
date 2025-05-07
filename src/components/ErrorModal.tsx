@@ -1,7 +1,6 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Modal, Text, Button } from '@mantine/core';
-import { RootState } from '../state/store';
 import { hideErrorModal, selectErrorStatus } from '../state/uiSlice';
 
 const ErrorModal: React.FC = () => {
