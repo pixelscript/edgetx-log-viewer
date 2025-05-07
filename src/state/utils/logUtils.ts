@@ -16,8 +16,7 @@ export const parseCSV = (csv: string) => {
     headers.forEach((key, idx) => {
       const val = values[idx].replace(/(^"|"$)/g, '');
       if (key === 'gps') {
-        const [lat, lon] = val.split(' ');
-        entry[key] = { lat: Number(lat), long: Number(lon) };
+        entry[key] = val;
       } else {
         entry[key] = isNaN(Number(val)) ? val : Number(val);
       }
