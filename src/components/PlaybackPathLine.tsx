@@ -79,7 +79,7 @@ const PlaybackPathLine: React.FC = () => {
           position={currentPlaneData.position}
           quaternion={currentPlaneData.quaternion}
         >
-          <mesh rotation={[currentPlaneData.roll, -currentPlaneData.yaw - Math.PI, -currentPlaneData.pitch]}>
+          <mesh rotation={[currentPlaneData.roll, -currentPlaneData.yaw - Math.PI, -currentPlaneData.pitch, 'YXZ']}>
             <mesh name="planeBody">
               <boxGeometry args={[clampedPlaneScale * 2, clampedPlaneScale * 0.5, clampedPlaneScale * 0.5]} />
               <meshStandardMaterial color={'#cccccc'} roughness={0.5} metalness={0.2} />
