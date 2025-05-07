@@ -20,7 +20,6 @@ const EarthScene = ({
       <EarthSphere textureUrl={textureUrl} />
       {!isPlaybackMode && <PathLines />}
       {isPlaybackMode && <PlaybackPathLine />}
-      <PlaybackPathLine />
       <CameraController />
     </Canvas>
   );
