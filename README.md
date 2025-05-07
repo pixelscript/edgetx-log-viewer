@@ -10,6 +10,7 @@ A web application for visualizing EdgeTX flight log data.
 *   Each log is sortable by model, date, duration, max altitude and max distance
 *   Visualize flight paths on a 3D globe.
 *   Line color can show flight mode or any numerical log value.
+*   Playback flight with scrubbable timeline.
 *   Logs can be exported to GPX or KML format along with an altitude offset.
 
 ## Enable telemetry logs
