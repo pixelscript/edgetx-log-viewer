@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Slider, Button, Group, Box } from '@mantine/core';
+import { Slider, Button, Group, Box, Textarea } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
@@ -37,7 +37,7 @@ const PlaybackControls: React.FC = () => {
       }
       intervalRef.current = setInterval(() => {
         dispatch(setPlaybackProgress(progress + 1));
-      }, 1);
+      }, 0);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -80,6 +80,11 @@ const PlaybackControls: React.FC = () => {
           disabled={!selectedLogData}
         />
       </Group>
+      {/* <Textarea
+          label="Log"
+          value={JSON.stringify(selectedLogData?.entries?.[progress], null, 2)}
+          autosize={true}
+        /> */}
     </Box>
   );
 };

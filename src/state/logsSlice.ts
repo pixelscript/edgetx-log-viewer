@@ -90,17 +90,44 @@ const logsSlice = createSlice({
     },
     addLog: (state, action: PayloadAction<{ filename: string; entries: LogEntry[] }>) => {
       const { filename, entries } = action.payload;
-      if (entries.length > 0 && !state.loadedLogs[filename]) {
-        const firstEntry = entries[0];
-        const numericalFields = Object.keys(firstEntry).filter(key =>
-          isNumericalField(key, firstEntry[key])
-        );
-        const uniqueEntries = removeDuplicates(entries);
-        const validEntries = removeInvalidGPSAndFormat(uniqueEntries);
-        const stats = calculateFlightStats(validEntries);
+
+      // Only process if there are initial entries and the log isn't already loaded.
+      if (entries.length === 0 || state.loadedLogs[filename]) {
+        if (state.loadedLogs[filename]) {
+          console.log(`Log file "${filename}" is already loaded.`);
+        } else {
+          console.warn(`Attempted to add log file "${filename}" which is empty or has no initial entries.`);
+          // The calling component should handle showing an error for empty initial entries if needed.
+        }
+        return; // Early exit
+      }
+
+      // Proceed with processing since entries.length > 0 and log not yet loaded
+      const firstEntry = entries[0];
+      const numericalFields = Object.keys(firstEntry).filter(key =>
+        isNumericalField(key, firstEntry[key])
+      );
+      const uniqueEntries = removeDuplicates(entries);
+      const processedEntries = removeInvalidGPSAndFormat(uniqueEntries);
+
+      if (processedEntries.length > 0) {
+        const stats = calculateFlightStats(processedEntries);
         const { modelName, logDate, logTime } = parseFilename(filename);
-        state.loadedLogs[filename] = { filename, entries: validEntries, numericalFields, stats, modelName, logDate, logTime };
-        state.selectedLogFilename = filename;
+        state.loadedLogs[filename] = {
+          filename,
+          entries: processedEntries,
+          numericalFields,
+          stats,
+          modelName,
+          logDate,
+          logTime
+        };
+        state.selectedLogFilename = filename; // Select if successfully added
+      } else {
+        // Log processed, but no valid entries remained.
+        // Do not add to loadedLogs. Do not set as selectedLogFilename.
+        // The component dispatching addLog will be responsible for showing an error.
+        console.warn(`Log file "${filename}" resulted in no valid entries after filtering and was not added.`);
       }
     },
     setSelectedLog: (state, action: PayloadAction<string | null>) => {

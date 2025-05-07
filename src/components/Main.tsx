@@ -1,8 +1,9 @@
 import "@mantine/core/styles.css";
 import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs } from "@mantine/core"; // Import Tabs
 import { useDisclosure } from '@mantine/hooks';
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux"; // Import useDispatch
 import { RootState } from "../state/store";
+import { setViewMode, ViewMode } from "../state/uiSlice"; // Import setViewMode and ViewMode
 import LogFileUploader from "./LogFileUploader";
 import LogSelectorTable from "./LogSelectorTable";
 import EarthViewer from "./EarthViewer";
@@ -18,6 +19,13 @@ export default function Main() {
   const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
   const [exportModalOpened, { open: openExportModal, close: closeExportModal }] = useDisclosure(false);
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
+  const dispatch = useDispatch(); // Get dispatch function
+
+  const handleTabChange = (value: string | null) => {
+    if (value) {
+      dispatch(setViewMode(value as ViewMode));
+    }
+  };
 
   return (
     <>
@@ -52,33 +60,32 @@ export default function Main() {
         </AppShell.Header>
 
         <AppShell.Navbar p="md">
-           <LogSelectorTable />
-           <LogFileUploader />
+          <LogSelectorTable />
+          <LogFileUploader />
         </AppShell.Navbar>
 
         <AppShell.Main>
-        <div style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
-            {/* Use Tabs component here */}
-            <Tabs defaultValue="stats" style={{ flexShrink: 0 }}> {/* Add flexShrink to prevent tabs from shrinking */}
+          <div style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
+            <Tabs defaultValue="stats" style={{ flexShrink: 0 }} onChange={handleTabChange}>
               <Tabs.List>
                 <Tabs.Tab value="stats">Stats</Tabs.Tab>
                 <Tabs.Tab value="playback">Playback</Tabs.Tab>
               </Tabs.List>
 
-              <Tabs.Panel value="stats" pt="xs"> {/* Add padding top */}
-                <FlightStatsDisplay />
+              <Tabs.Panel value="stats" pt="xs" pb="md">
+                <Stack style={{ flex: 1, marginTop: 'md' }}>
+                  <FlightStatsDisplay />
+                  <ModeColorKey />
+                </Stack>
               </Tabs.Panel>
 
-              <Tabs.Panel value="playback" pt="xs"> {/* Add padding top */}
-                <PlaybackControls /> {/* Use PlaybackControls component */}
+              <Tabs.Panel value="playback" pt="xs" pb="md">
+                <Stack style={{ flex: 1, marginTop: 'md' }}>
+                  <PlaybackControls />
+                </Stack>
               </Tabs.Panel>
             </Tabs>
-
-            {/* Keep ModeColorKey and EarthViewer below the tabs */}
-            <Stack style={{ flex: 1, marginTop: 'md' }}> {/* Add marginTop and keep flex: 1 */}
-              <ModeColorKey />
-              <EarthViewer />
-            </Stack>
+            <EarthViewer />
           </div>
         </AppShell.Main>
       </AppShell>
