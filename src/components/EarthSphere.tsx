@@ -1,11 +1,12 @@
 import getFresnelMat from "../shaders/getFresnelMat";
-import * as THREE from "three";
+import { useTexture } from "@react-three/drei";
 import { EARTH_RADIUS } from "../consts";
+
 export const EarthSphere = ({ textureUrl }: { textureUrl?: string }) => {
   const fresnelMat = getFresnelMat();
-  const materialProps = textureUrl
-    ? { map: new THREE.TextureLoader().load(textureUrl) }
-    : { color: 0x808080 };
+  const texture = textureUrl ? useTexture(textureUrl) : null;
+  const materialProps = texture ? { map: texture } : { color: 0x808080 };
+
   return (
     <group>
       <mesh>

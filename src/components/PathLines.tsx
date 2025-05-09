@@ -54,10 +54,11 @@ const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string
     return { minVal: min, maxVal: max === min ? min + 0.000001 : max };
   }, [logEntries, selectedField]);
 
-  const lineSegments = useMemo(() => {
-    if (logEntries.length < 2) return [];
+  const line = useMemo(() => {
+    if (logEntries.length < 2) return null;
 
-    const segments: React.ReactNode[] = [];
+    const points: THREE.Vector3[] = [];
+    const colors: number[] = [];
     const hue = 0 / 360;
 
     for (let i = 1; i < logEntries.length; i++) {
@@ -77,8 +78,9 @@ const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string
         const startPoint = latLongToCartesian(prevGps.lat, prevGps.long, prevAlt);
         const endPoint = latLongToCartesian(currentGps.lat, currentGps.long, currentAlt);
 
-        const value = prevEntry[selectedField];
+        points.push(startPoint, endPoint);
 
+        const value = prevEntry[selectedField];
         let saturation = 0.2;
         if (typeof value === 'number' && isFinite(value)) {
           const normalizedValue = (value - minVal) / (maxVal - minVal);
@@ -87,22 +89,28 @@ const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string
         }
 
         const color = new THREE.Color().setHSL(hue, saturation, 0.5);
-        const geometry = new THREE.BufferGeometry().setFromPoints([startPoint, endPoint]);
-        const material = new THREE.LineBasicMaterial({ color });
 
-        const key = `${i}-${prevGps.lat}-${prevGps.long}-${currentGps.lat}-${currentGps.long}-${color.getHexString()}`;
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
 
-        segments.push(
-          <primitive key={key} object={new THREE.Line(geometry, material)} />
-        );
       } catch (error) {
         console.error(`Error processing segment ${i}:`, error, { prevEntry, currentEntry });
       }
     }
-    return segments;
+
+    if (points.length === 0) return null;
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const material = new THREE.LineBasicMaterial({ vertexColors: true });
+    return new THREE.LineSegments(geometry, material);
+
   }, [logEntries, selectedField, minVal, maxVal]);
 
-  return <group>{lineSegments}</group>;
+  if (!line) return null;
+
+  return <primitive object={line} />;
 };
 
 

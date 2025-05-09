@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Table, Paper, Title, ScrollArea, UnstyledButton, Group, Center, rem, Button } from '@mantine/core';
 import { IconSelector, IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
@@ -53,40 +53,42 @@ const LogSelectorTable: React.FC = () => {
     setSortBy(field);
   };
 
-  const sortedData = [...logFiles].sort((a, b) => {
-    if (!sortBy) return 0;
+  const sortedData = useMemo(() => {
+    return [...logFiles].sort((a, b) => {
+      if (!sortBy) return 0;
 
-    let aValue: any;
-    let bValue: any;
+      let aValue: any;
+      let bValue: any;
 
-    if (sortBy === 'flightDurationMinutes' || sortBy === 'maxAltitudeM' || sortBy === 'maxDistanceKm') {
+      if (sortBy === 'flightDurationMinutes' || sortBy === 'maxAltitudeM' || sortBy === 'maxDistanceKm') {
         aValue = a.stats?.[sortBy];
         bValue = b.stats?.[sortBy];
-    } else if (sortBy in a) {
+      } else if (sortBy in a) {
         aValue = a[sortBy as keyof LoadedLog];
         bValue = b[sortBy as keyof LoadedLog];
-    }
+      }
 
-    if (aValue === null || aValue === undefined) return reverseSortDirection ? -1 : 1;
-    if (bValue === null || bValue === undefined) return reverseSortDirection ? 1 : -1;
+      if (aValue === null || aValue === undefined) return reverseSortDirection ? -1 : 1;
+      if (bValue === null || bValue === undefined) return reverseSortDirection ? 1 : -1;
 
 
-    if (typeof aValue === 'number' && typeof bValue === 'number') {
-      return reverseSortDirection ? bValue - aValue : aValue - bValue;
-    }
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return reverseSortDirection ? bValue - aValue : aValue - bValue;
+      }
 
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      return reverseSortDirection ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue);
-    }
-    if (sortBy === 'logDate') {
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return reverseSortDirection ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue);
+      }
+      if (sortBy === 'logDate') {
         const dateA = a.logDate ? new Date(a.logDate).getTime() : 0;
         const dateB = b.logDate ? new Date(b.logDate).getTime() : 0;
         return reverseSortDirection ? dateB - dateA : dateA - dateB;
-    }
+      }
 
 
-    return 0;
-  });
+      return 0;
+    });
+  }, [logFiles, sortBy, reverseSortDirection]);
 
 
   const handleRowClick = (filename: string) => {

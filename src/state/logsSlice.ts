@@ -10,21 +10,18 @@ const isNumericalField = (key: string, value: any): boolean => {
 };
 
 const removeDuplicates = (entries: LogEntry[]): LogEntry[] => {
-  const uniqueEntries: LogEntry[] = [];
-  let previousEntry: LogEntry | null = null;
-  for (const entry of entries) {
-    if (previousEntry !== null) {
-      const isDuplicate = Object.keys(entry).every(key => {
-        if (key === 'time') return true;
-        return entry[key] === previousEntry?.[key];
-      });
-      if (!isDuplicate) {
-        uniqueEntries.push(entry);
-      }
-    } else {
-      uniqueEntries.push(entry);
+  if (entries.length === 0) return [];
+  const uniqueEntries: LogEntry[] = [entries[0]];
+  let previousEntryJson = JSON.stringify({ ...entries[0], time: undefined });
+
+  for (let i = 1; i < entries.length; i++) {
+    const currentEntry = entries[i];
+    const currentEntryJson = JSON.stringify({ ...currentEntry, time: undefined });
+
+    if (currentEntryJson !== previousEntryJson) {
+      uniqueEntries.push(currentEntry);
+      previousEntryJson = currentEntryJson;
     }
-    previousEntry = entry;
   }
   console.log(`Filtered ${entries.length - uniqueEntries.length} duplicate entries.`);
   return uniqueEntries;
