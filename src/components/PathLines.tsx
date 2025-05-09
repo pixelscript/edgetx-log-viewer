@@ -5,7 +5,7 @@ import { RootState } from '../state/store';
 import type { Path } from '../state/types/generatedTypes';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
-
+import { isEqual } from 'lodash';
 const getModeColor = (mode: string): THREE.ColorRepresentation => {
   switch (mode) {
     case 'OK': return 'green';
@@ -131,7 +131,13 @@ const groupEntriesByMode = (logEntries: LogEntry[]): { mode: string; path: Path 
 };
 
 export const PathLines: React.FC = () => {
-  const { selectedLogFilename, loadedLogs, selectedField } = useSelector((state: RootState) => state.logs);
+  const { selectedLogFilename, loadedLogs, selectedField } = useSelector((state: RootState) => {
+    return {
+      selectedLogFilename: state.logs.selectedLogFilename,
+      loadedLogs: state.logs.loadedLogs,
+      selectedField: state.logs.selectedField,
+    };
+  }, isEqual);
   const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
   const logEntries = currentLog?.entries ?? [];
   const modePaths = useMemo(() => {

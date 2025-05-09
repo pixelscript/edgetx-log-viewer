@@ -9,6 +9,7 @@ import { EARTH_RADIUS } from '../consts';
 import { useThree } from '@react-three/fiber';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
+import { isEqual } from 'lodash';
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
     return entries
         .map(entry => {
@@ -27,7 +28,12 @@ export const CameraController = () => {
   const controlsRef = useRef<any>(null);
   const { camera, gl } = useThree();
   const dispatch = useDispatch();
-  const { selectedLogFilename, loadedLogs } = useSelector((state: RootState) => state.logs);
+  const { selectedLogFilename, loadedLogs } = useSelector((state: RootState) => {
+    return {
+      selectedLogFilename: state.logs.selectedLogFilename,
+      loadedLogs: state.logs.loadedLogs
+    };
+  }, isEqual);
   const pathCoordinates = useMemo(() => {
     const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
     return currentLog ? getCoordinatesFromEntries(currentLog.entries) : [];

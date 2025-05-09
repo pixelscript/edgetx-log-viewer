@@ -3,7 +3,7 @@ import { Modal, NumberInput, Button, Group, Stack, Radio } from '@mantine/core';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import { generateGpx, generateKml } from '../utils/exportUtils';
-
+import { isEqual } from 'lodash';
 interface ExportModalProps {
   opened: boolean;
   close: () => void;
@@ -16,7 +16,7 @@ export default function ExportModal({ opened, close }: ExportModalProps) {
   const selectedLog = useSelector((state: RootState) => {
     if (!selectedLogFilename) return null;
     return state.logs.loadedLogs[selectedLogFilename];
-  });
+  }, isEqual);
 
 
   const handleExport = () => {

@@ -5,7 +5,7 @@ import { RootState } from '../state/store';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { LogEntry, GPS } from '../state/types/logTypes';
 import { EARTH_CENTER } from '../consts';
-
+import { isEqual } from 'lodash';
 export type PlanePoint = {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;
@@ -16,7 +16,7 @@ export type PlanePoint = {
 
 const PlaybackPathLine: React.FC = () => {
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
-  const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs);
+  const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
   const progress = useSelector((state: RootState) => state.logs.playbackProgress);
 
   const allFlightDataPoints = useMemo(() => {

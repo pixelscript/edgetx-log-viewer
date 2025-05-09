@@ -2,9 +2,14 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import { Paper, Text, Group, Stack } from '@mantine/core';
-
+import { isEqual } from 'lodash';
 const FlightStatsDisplay: React.FC = () => {
-  const { loadedLogs, selectedLogFilename } = useSelector((state: RootState) => state.logs);
+  const { loadedLogs, selectedLogFilename } = useSelector((state: RootState) => {
+    return {
+      loadedLogs: state.logs.loadedLogs,
+      selectedLogFilename: state.logs.selectedLogFilename
+    };
+  }, isEqual);
   const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
   const stats = currentLog?.stats || { maxDistanceKm: null, maxAltitudeM: null, flightDurationMinutes: null, mostUsedMode: null };
   const formatStat = (value: number | string | null, unit: string = '', precision: number = 1): string => {

@@ -4,6 +4,7 @@ import { Group, ColorSwatch, Text, Paper, useMantineTheme, Stack, Box, Select } 
 import { RootState } from '../state/store';
 import { logValueTitles, LogValueInfo } from '../consts/logValueTitles';
 import { setSelectedField } from '../state/logsSlice';
+import { isEqual } from 'lodash';
 const modeColorsData = [
   { mode: 'OK', color: 'green' },
   { mode: 'CRUZ', color: 'orange' },
@@ -23,7 +24,13 @@ const formatValue = (value: number | null): string => {
 
 function ModeColorKey() {
   const theme = useMantineTheme();
-  const { selectedField, loadedLogs, selectedLogFilename } = useSelector((state: RootState) => state.logs);
+  const { selectedField, loadedLogs, selectedLogFilename } = useSelector((state: RootState) => {
+    return {
+      selectedField: state.logs.selectedField,
+      loadedLogs: state.logs.loadedLogs,
+      selectedLogFilename: state.logs.selectedLogFilename,
+    }
+  }, isEqual);
   const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
   const numericalFields = currentLog?.numericalFields ?? [];
   const dispatch = useDispatch();

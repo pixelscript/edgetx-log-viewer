@@ -5,6 +5,7 @@ import { IconSelector, IconChevronDown, IconChevronUp, IconTrash } from '@tabler
 import { RootState } from '../state/store';
 import { setSelectedLog, removeLog } from '../state/logsSlice';
 import { LoadedLog } from '../state/types';
+import { isEqual } from 'lodash';
 import classes from './LogSelectorTable.module.css';
 
 type SortKey = keyof LoadedLog | 'flightDurationMinutes' | 'maxAltitudeM' | 'maxDistanceKm' | null;
@@ -35,7 +36,12 @@ function Th({ children, reversed, sorted, onSort }: ThProps) {
 
 const LogSelectorTable: React.FC = () => {
   const dispatch = useDispatch();
-  const { loadedLogs, selectedLogFilename } = useSelector((state: RootState) => state.logs);
+  const { loadedLogs, selectedLogFilename } = useSelector((state: RootState) => {
+    return {
+      loadedLogs: state.logs.loadedLogs,
+      selectedLogFilename: state.logs.selectedLogFilename
+    };
+  }, isEqual);
   const [sortBy, setSortBy] = useState<SortKey>(null);
   const [reverseSortDirection, setReverseSortDirection] = useState(false);
 

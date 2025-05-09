@@ -4,6 +4,7 @@ import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
 import { setPlaybackProgress } from '../state/logsSlice';
+import { isEqual } from 'lodash';
 const speedOptions = [
   { value: '1', label: '1x' },
   { value: '2', label: '2x' },
@@ -28,7 +29,7 @@ const PlaybackControls: React.FC = () => {
   const progress = useSelector((state: RootState) => state.logs.playbackProgress);
   const selectedLogData = useSelector((state: RootState) =>
     state.logs.selectedLogFilename ? state.logs.loadedLogs[state.logs.selectedLogFilename] : null
-  );
+  , isEqual);
   const duration = selectedLogData?.entries.length ? selectedLogData.entries.length - 1 : 100;
   const intervalRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -39,7 +40,7 @@ const PlaybackControls: React.FC = () => {
   const handleSliderChange = (value: number) => {
     dispatch(setPlaybackProgress(value));
     if (isPlaying) {
-      setIsPlaying(false); // Pause if scrubbing
+      setIsPlaying(false);
     }
   };
 
@@ -65,12 +66,6 @@ const PlaybackControls: React.FC = () => {
       }
     };
   }, [isPlaying, progress, duration, dispatch]);
-
-   useEffect(() => {
-    if (progress >= duration) {
-      setIsPlaying(false);
-    }
-  }, [progress, duration]);
 
   useEffect(() => {
     dispatch(setPlaybackProgress(0));
