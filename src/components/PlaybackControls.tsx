@@ -23,7 +23,8 @@ const speedOptions = [
   { value: '500', label: '500x' },
 ]
 const PlaybackControls: React.FC = () => {
-  const { playbackProgress: progress, setPlaybackProgress } = usePlayback();
+  const [ progress, setPlaybackProgress ] = useState(0);
+  const { setPlaybackProgress: setGlobalPlaybackProgress } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
   const [multiplier, setMultiplier] = useState(1);
   const selectedLogData = useSelector((state: RootState) =>
@@ -38,6 +39,7 @@ const PlaybackControls: React.FC = () => {
 
   const handleSliderChange = (value: number) => {
     setPlaybackProgress(value);
+    setGlobalPlaybackProgress(value);
     if (isPlaying) {
       setIsPlaying(false);
     }
@@ -48,11 +50,13 @@ const PlaybackControls: React.FC = () => {
       if (progress >= duration) {
           setIsPlaying(false);
           setPlaybackProgress(duration);
+          setGlobalPlaybackProgress(duration);
           return;
       }
       intervalRef.current = setInterval(() => {
         setPlaybackProgress(prevProgress => Math.min(prevProgress + multiplier, duration));
-      }, 0);
+        setGlobalPlaybackProgress(progress);
+      }, 1);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -68,6 +72,7 @@ const PlaybackControls: React.FC = () => {
 
   useEffect(() => {
     setPlaybackProgress(0);
+    setGlobalPlaybackProgress(0);
     setIsPlaying(false);
   }, [selectedLogData, setPlaybackProgress]);
 
