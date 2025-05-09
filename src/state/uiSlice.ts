@@ -14,7 +14,7 @@ interface UiState {
 }
 
 const initialState: UiState = {
-  viewMode: 'stats', // Default view mode
+  viewMode: 'stats',
   errorStatus: {
     message: null,
     isModalVisible: false,
@@ -37,15 +37,12 @@ const uiSlice = createSlice({
     },
     hideErrorModal: (state) => {
       state.errorStatus.isModalVisible = false;
-      // Optionally clear the message when hiding, or keep it for reference
-      // state.errorStatus.message = null;
     },
   },
 });
 
 export const { setViewMode, setErrorStatus, showErrorModal, hideErrorModal } = uiSlice.actions;
 
-// Selectors
 export const selectViewMode = (state: RootState) => state.ui.viewMode;
 export const selectErrorStatus = (state: RootState) => state.ui.errorStatus;
 export const selectErrorMessage = (state: RootState) => state.ui.errorStatus.message;

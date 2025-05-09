@@ -30,7 +30,6 @@ export type LogsState = {
   selectedLogFilename: string | null;
   selectedField: string | null;
   targetCenter: XYZ | null;
-  playbackProgress: number; // Add playback progress state
 };
 
 export type FlightStats = {

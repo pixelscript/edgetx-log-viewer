@@ -78,7 +78,6 @@ const initialState: LogsState = {
   selectedLogFilename: null,
   selectedField: null,
   targetCenter: null,
-  playbackProgress: 0, // Initialize playback progress
 };
 
 const logsSlice = createSlice({
@@ -91,18 +90,15 @@ const logsSlice = createSlice({
     addLog: (state, action: PayloadAction<{ filename: string; entries: LogEntry[] }>) => {
       const { filename, entries } = action.payload;
 
-      // Only process if there are initial entries and the log isn't already loaded.
       if (entries.length === 0 || state.loadedLogs[filename]) {
         if (state.loadedLogs[filename]) {
           console.log(`Log file "${filename}" is already loaded.`);
         } else {
           console.warn(`Attempted to add log file "${filename}" which is empty or has no initial entries.`);
-          // The calling component should handle showing an error for empty initial entries if needed.
         }
-        return; // Early exit
+        return;
       }
 
-      // Proceed with processing since entries.length > 0 and log not yet loaded
       const firstEntry = entries[0];
       const numericalFields = Object.keys(firstEntry).filter(key =>
         isNumericalField(key, firstEntry[key])
@@ -122,11 +118,8 @@ const logsSlice = createSlice({
           logDate,
           logTime
         };
-        state.selectedLogFilename = filename; // Select if successfully added
+        state.selectedLogFilename = filename;
       } else {
-        // Log processed, but no valid entries remained.
-        // Do not add to loadedLogs. Do not set as selectedLogFilename.
-        // The component dispatching addLog will be responsible for showing an error.
         console.warn(`Log file "${filename}" resulted in no valid entries after filtering and was not added.`);
       }
     },
@@ -160,20 +153,8 @@ const logsSlice = createSlice({
         }
       }
     },
-    setPlaybackProgress: (state, action: PayloadAction<number>) => {
-      if (state.selectedLogFilename) {
-        const log = state.loadedLogs[state.selectedLogFilename];
-        if (log) {
-          // Clamp progress between 0 and the number of entries - 1
-          const maxProgress = log.entries.length > 0 ? log.entries.length - 1 : 0;
-          state.playbackProgress = Math.max(0, Math.min(action.payload, maxProgress));
-        }
-      } else {
-        state.playbackProgress = 0; // Reset if no log selected
-      }
-    },
   },
 });
 
-export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter, setPlaybackProgress } = logsSlice.actions; // Export new action
+export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter } = logsSlice.actions;
 export default logsSlice.reducer;

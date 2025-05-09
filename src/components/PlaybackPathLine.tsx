@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import * as THREE from 'three';
 import { RootState } from '../state/store';
+import { usePlayback } from '../contexts/PlaybackContext';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { LogEntry, GPS } from '../state/types/logTypes';
 import { EARTH_CENTER } from '../consts';
@@ -17,7 +18,7 @@ export type PlanePoint = {
 const PlaybackPathLine: React.FC = () => {
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
-  const progress = useSelector((state: RootState) => state.logs.playbackProgress);
+  const { playbackProgress: progress } = usePlayback();
 
   const allFlightDataPoints = useMemo(() => {
     if (!selectedLogFilename) return [];

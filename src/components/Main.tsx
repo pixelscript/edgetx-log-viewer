@@ -1,14 +1,14 @@
 import "@mantine/core/styles.css";
-import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs } from "@mantine/core"; // Import Tabs
+import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
-import { useSelector, useDispatch } from "react-redux"; // Import useDispatch
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
-import { setViewMode, ViewMode } from "../state/uiSlice"; // Import setViewMode and ViewMode
+import { setViewMode, ViewMode } from "../state/uiSlice";
 import LogFileUploader from "./LogFileUploader";
 import LogSelectorTable from "./LogSelectorTable";
 import EarthViewer from "./EarthViewer";
 import ModeColorKey from "./ModeColorKey";
-import PlaybackControls from "./PlaybackControls"; // Import PlaybackControls
+import PlaybackControls from "./PlaybackControls";
 import FlightStatsDisplay from "./FlightStatsDisplay";
 import { IconDownload } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
@@ -19,7 +19,7 @@ export default function Main() {
   const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
   const [exportModalOpened, { open: openExportModal, close: closeExportModal }] = useDisclosure(false);
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
-  const dispatch = useDispatch(); // Get dispatch function
+  const dispatch = useDispatch();
 
   const handleTabChange = (value: string | null) => {
     if (value) {

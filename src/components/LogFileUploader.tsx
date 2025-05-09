@@ -4,8 +4,8 @@ import { Group, Text, rem } from '@mantine/core';
 import { IconUpload, IconFileText, IconX } from '@tabler/icons-react';
 import { Dropzone, DropzoneProps, FileWithPath } from '@mantine/dropzone';
 import { addLog } from '../state/logsSlice';
-import { showErrorModal } from '../state/uiSlice'; // Added
-import { store } from '../state/store'; // Added
+import { showErrorModal } from '../state/uiSlice';
+import { store } from '../state/store';
 import { parseCSV } from '../state/utils/logUtils';
 
 const LogFileUploader: React.FC<Partial<DropzoneProps>> = (props) => {
@@ -26,10 +26,7 @@ const LogFileUploader: React.FC<Partial<DropzoneProps>> = (props) => {
               dispatch(showErrorModal(`Log file "${file.name}" appears to be empty or incorrectly formatted.`));
               return;
             }
-            // Dispatch addLog action
             dispatch(addLog({ filename: file.name, entries: parsedEntries }));
-
-            // Check if the log was actually added (i.e., it had valid entries after processing)
             const currentLogs = store.getState().logs.loadedLogs;
             if (!currentLogs[file.name]) {
               dispatch(showErrorModal(`Log file "${file.name}" contained no valid flight data after processing (e.g., duplicate entries or missing GPS) and was not loaded.`));

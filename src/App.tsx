@@ -7,6 +7,7 @@ import { store } from "./state/store";
 import { theme } from "./theme";
 import Main from "./components/Main";
 import ErrorModal from "./components/ErrorModal";
+import { PlaybackProvider } from "./contexts/PlaybackContext";
 
 export default function App() {
 
@@ -15,7 +16,9 @@ export default function App() {
       <ColorSchemeScript defaultColorScheme="auto" />
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Provider store={store}>
-          <Main />
+          <PlaybackProvider>
+            <Main />
+          </PlaybackProvider>
           <ErrorModal />
       </Provider>
       </MantineProvider>

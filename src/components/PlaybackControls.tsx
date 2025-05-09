@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Slider, Button, Group, Box, Select } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
-import { setPlaybackProgress } from '../state/logsSlice';
 import { isEqual } from 'lodash';
+import { usePlayback } from '../contexts/PlaybackContext';
 const speedOptions = [
   { value: '1', label: '1x' },
   { value: '2', label: '2x' },
@@ -23,10 +23,9 @@ const speedOptions = [
   { value: '500', label: '500x' },
 ]
 const PlaybackControls: React.FC = () => {
-  const dispatch = useDispatch();
+  const { playbackProgress: progress, setPlaybackProgress } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
   const [multiplier, setMultiplier] = useState(1);
-  const progress = useSelector((state: RootState) => state.logs.playbackProgress);
   const selectedLogData = useSelector((state: RootState) =>
     state.logs.selectedLogFilename ? state.logs.loadedLogs[state.logs.selectedLogFilename] : null
   , isEqual);
@@ -38,7 +37,7 @@ const PlaybackControls: React.FC = () => {
   }, []);
 
   const handleSliderChange = (value: number) => {
-    dispatch(setPlaybackProgress(value));
+    setPlaybackProgress(value);
     if (isPlaying) {
       setIsPlaying(false);
     }
@@ -48,11 +47,11 @@ const PlaybackControls: React.FC = () => {
     if (isPlaying) {
       if (progress >= duration) {
           setIsPlaying(false);
-          dispatch(setPlaybackProgress(duration));
+          setPlaybackProgress(duration);
           return;
       }
       intervalRef.current = setInterval(() => {
-        dispatch(setPlaybackProgress(progress + multiplier));
+        setPlaybackProgress(prevProgress => Math.min(prevProgress + multiplier, duration));
       }, 0);
     } else {
       if (intervalRef.current) {
@@ -65,12 +64,12 @@ const PlaybackControls: React.FC = () => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, progress, duration, dispatch]);
+  }, [isPlaying, progress, duration, setPlaybackProgress, multiplier]);
 
   useEffect(() => {
-    dispatch(setPlaybackProgress(0));
+    setPlaybackProgress(0);
     setIsPlaying(false);
-  }, [selectedLogData, dispatch]);
+  }, [selectedLogData, setPlaybackProgress]);
 
 
   return (
