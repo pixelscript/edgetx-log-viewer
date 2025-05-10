@@ -6,6 +6,7 @@ import { RootState } from "../state/store";
 import { setViewMode, ViewMode } from "../state/uiSlice";
 import LogFileUploader from "./LogFileUploader";
 import LogSelectorTable from "./LogSelectorTable";
+import { MapSourceSelector } from "./MapSourceSelector"; // Added import
 import EarthViewer from "./EarthViewer";
 import ModeColorKey from "./ModeColorKey";
 import PlaybackControls from "./PlaybackControls";
@@ -62,6 +63,7 @@ export default function Main() {
         <AppShell.Navbar p="md">
           <LogSelectorTable />
           <LogFileUploader />
+          <MapSourceSelector />
         </AppShell.Navbar>
 
         <AppShell.Main>
