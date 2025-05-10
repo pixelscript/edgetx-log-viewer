@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import * as THREE from 'three';
 import { RootState } from '../state/store';
+import { selectYawOffset } from '../state/uiSlice';
 import { usePlayback } from '../contexts/PlaybackContext';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { LogEntry, GPS } from '../state/types/logTypes';
@@ -19,6 +20,7 @@ const PlaybackPathLine: React.FC = () => {
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
   const { playbackProgress: progress } = usePlayback();
+  const yawOffset = useSelector(selectYawOffset);
 
   const allFlightDataPoints = useMemo(() => {
     if (!selectedLogFilename) return [];
@@ -80,7 +82,7 @@ const PlaybackPathLine: React.FC = () => {
           position={currentPlaneData.position}
           quaternion={currentPlaneData.quaternion}
         >
-          <mesh rotation={[currentPlaneData.roll, -currentPlaneData.yaw - Math.PI, -currentPlaneData.pitch, 'YXZ']}>
+          <mesh rotation={[currentPlaneData.roll, -currentPlaneData.yaw - Math.PI + yawOffset, -currentPlaneData.pitch, 'YXZ']}>
             <mesh name="planeBody">
               <boxGeometry args={[clampedPlaneScale * 2, clampedPlaneScale * 0.5, clampedPlaneScale * 0.5]} />
               <meshStandardMaterial color={'#cccccc'} roughness={0.5} metalness={0.2} />
