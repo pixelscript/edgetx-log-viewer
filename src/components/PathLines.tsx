@@ -6,6 +6,9 @@ import type { Path } from '../state/types/generatedTypes';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { isEqual } from 'lodash';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 const getModeColor = (mode: string): THREE.ColorRepresentation => {
   switch (mode) {
     case 'OK': return 'green';
@@ -29,16 +32,26 @@ const ModePathLine: React.FC<{ pathCoordinates: Path; mode: string }> = ({ pathC
 
   const geometry = useMemo(() => {
     if (points.length < 2) return null;
-    return new THREE.BufferGeometry().setFromPoints(points);
+    const lineSegmentsGeometry = new LineGeometry();;
+    const positions = points.flatMap(point => [point.x, point.y, point.z]);
+    lineSegmentsGeometry.setPositions(positions);
+    return lineSegmentsGeometry;
   }, [points]);
-
-  const color = useMemo(() => getModeColor(mode), [mode]);
-  const material = useMemo(() => new THREE.LineBasicMaterial({ color }), [color]);
-
+  
   if (!geometry) return null;
-  const line = useMemo(() => new THREE.Line(geometry, material), [geometry, material]);
-
+  const color = useMemo(() => getModeColor(mode), [mode]);
+  const material = useMemo(() => {
+    return new LineMaterial({
+      color: color,
+      linewidth: 5,
+      dashed: false,
+      alphaToCoverage: true,
+    });
+  }, [color]);
+  const line = useMemo(() => geometry && new LineSegments2(geometry, material), [geometry, material]);
   return <primitive object={line} />;
+
+
 };
 
 const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string }> = ({ logEntries, selectedField }) => {

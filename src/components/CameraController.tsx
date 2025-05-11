@@ -13,16 +13,16 @@ import type { LogEntry, GPS } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
 import { isEqual } from 'lodash';
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
-    return entries
-        .map(entry => {
-            const gps = entry['gps'] as GPS | undefined;
-            const alt = entry['alt'] as number | undefined;
-            if (gps && typeof alt === 'number' && typeof gps.lat === 'number' && typeof gps.long === 'number') {
-                return { latitude: gps.lat, longitude: gps.long, altitude: alt };
-            }
-            return null;
-        })
-        .filter((coord): coord is { latitude: number; longitude: number; altitude: number } => coord !== null);
+  return entries
+    .map(entry => {
+      const gps = entry['gps'] as GPS | undefined;
+      const alt = entry['alt'] as number | undefined;
+      if (gps && typeof alt === 'number' && typeof gps.lat === 'number' && typeof gps.long === 'number') {
+        return { latitude: gps.lat, longitude: gps.long, altitude: alt };
+      }
+      return null;
+    })
+    .filter((coord): coord is { latitude: number; longitude: number; altitude: number } => coord !== null);
 };
 
 
@@ -57,17 +57,30 @@ export const CameraController = ({ children }: PropsWithChildren) => {
       const box = new THREE.Box3().setFromPoints(points);
       targetCenter = new THREE.Vector3();
       box.getCenter(targetCenter);
-      const startCoord = pathCoordinates[0];
-      camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
+
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const radius = size.length() / 2;
+
+      if (!(camera instanceof THREE.PerspectiveCamera)) {
+        throw new Error('Camera is not a PerspectiveCamera, fov is unavailable.');
+      }
+      const fov = (camera.fov * Math.PI) / 180;
+      const aspect = camera.aspect;
+      const distanceY = radius / Math.sin(fov / 2);
+      const distanceX = radius / Math.sin(Math.atan(Math.tan(fov / 2) * aspect));
+      const distance = Math.max(distanceX, distanceY);
+      const direction = targetCenter.clone().normalize();
+      camPos = direction.multiplyScalar(targetCenter.length() + distance);
     }
-    dispatch(setTargetCenter({x: targetCenter.x, y: targetCenter.y, z: targetCenter.z}));
+    dispatch(setTargetCenter({ x: targetCenter.x, y: targetCenter.y, z: targetCenter.z }));
     if (controlsRef.current) {
-        controlsRef.current.target.copy(targetCenter);
-        camera.position.copy(camPos);
-        controlsRef.current.update();
+      controlsRef.current.target.copy(targetCenter);
+      camera.position.copy(camPos);
+      controlsRef.current.update();
     } else {
-        camera.position.copy(camPos);
-        camera.lookAt(targetCenter);
+      camera.position.copy(camPos);
+      camera.lookAt(targetCenter);
     }
 
   }, [pathCoordinates, camera, controlsRef]);
