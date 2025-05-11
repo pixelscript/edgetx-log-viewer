@@ -8,6 +8,27 @@ import * as THREE from 'three';
 import { selectMapType } from '../state/uiSlice';
 import { MapType } from '../consts/earth';
 
+function tileXYToQuadKey(tileX: number, tileY: number, levelOfDetail: number): string {
+  let quadKey = '';
+  for (let i = levelOfDetail; i > 0; i--) {
+    let digit = 0;
+    const mask = 1 << (i - 1);
+    if ((tileX & mask) !== 0) {
+      digit++;
+    }
+    if ((tileY & mask) !== 0) {
+      digit++;
+      digit++;
+    }
+    quadKey += digit.toString();
+  }
+  return quadKey;
+}
+
+function getBingMapsServerNum(tileX: number, tileY: number): number {
+  return (tileX + tileY) % 4;
+}
+
 export default function Slippy() {
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
@@ -17,17 +38,18 @@ export default function Slippy() {
   const getTileUrl = (mapType: MapType, x: number, y: number, l: number): string => {
     switch (mapType) {
       case MapType.MapBox:
-        // Replace with your MapBox access token and style
-        // Example: return `https://api.mapbox.com/styles/v1/your_username/your_style_id/tiles/${l}/${x}/${y}?access_token=YOUR_MAPBOX_ACCESS_TOKEN`;
         console.warn('MapBox tile URL requires an access token and style. Using OpenStreetMap as fallback.');
         return `https://tile.openstreetmap.org/${l}/${x}/${y}.png`;
       case MapType.EsriWorld:
         return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
       case MapType.BingMap:
-        // Bing Maps requires a more complex setup for tile URLs, often involving a QuadKey.
-        // This is a placeholder and might need a specific library or utility for Bing.
-        console.warn('Bing Maps tile URL is not fully implemented, using OpenStreetMap as fallback.');
-        return `https://tile.openstreetmap.org/${l}/${x}/${y}.png`;
+        const quadKey = tileXYToQuadKey(x, y, l);
+        const serverNum = getBingMapsServerNum(x,y);
+        return `https://ecn.t${serverNum}.tiles.virtualearth.net/tiles/a${quadKey}.jpeg?g=563&mkt=en-US&device=mobile`;
+      case MapType.BingMapHybrid:
+        const quadKeyHybrid = tileXYToQuadKey(x, y, l);
+        const serverNumHybrid = getBingMapsServerNum(x,y);
+        return `https://ecn.t${serverNumHybrid}.tiles.virtualearth.net/tiles/h${quadKeyHybrid}.jpeg?g=563&mkt=en-US&device=mobile`;
       case MapType.OpenStreetMap:
       default:
         return `https://tile.openstreetmap.org/${l}/${x}/${y}.png`;
@@ -41,14 +63,9 @@ export default function Slippy() {
     const currentControls = controlsRef.current;
     const currentGroup = groupRef.current;
 
-    // Clear previous globe if any
     while (currentGroup.children.length > 0) {
       const child = currentGroup.children[0];
       currentGroup.remove(child);
-      if (child instanceof SlippyMapGlobe) {
-        // If you have a dispose method for SlippyMapGlobe, call it here
-        // child.dispose();
-      }
     }
 
     let globe: SlippyMapGlobe | null = null;
@@ -71,8 +88,6 @@ export default function Slippy() {
         currentControls.removeEventListener('change', handleChange);
         if (currentGroup && globe) {
           currentGroup.remove(globe);
-          // If you have a dispose method for SlippyMapGlobe, call it here
-          // globe.dispose();
         }
       };
     }

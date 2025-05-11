@@ -75,8 +75,8 @@ export default function Main() {
                 dispatch(setMapType(value as MapType));
               }
             }}
-            mt="md" // Add some margin to the top
-            size="sm" // Make it a bit larger
+            mt="md"
+            size="sm"
           />
         </AppShell.Navbar>
 

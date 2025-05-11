@@ -7,7 +7,7 @@ import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { LogEntry, GPS } from '../state/types/logTypes';
 import { EARTH_CENTER } from '../consts';
 import { isEqual } from 'lodash';
-import { ColoredPathLine } from './ColoredPathLine'; // Added import
+import { ColoredPathLine } from './ColoredPathLine';
 export type PlanePoint = {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;
@@ -51,15 +51,13 @@ const PlaybackPathLine: React.FC = () => {
     return currentFlightSegment.map(p => p.position);
   }, [currentFlightSegment]);
 
-  // Removed lineGeometry useMemo as it's handled by ColoredPathLine
-
   const currentPlaneData = useMemo(() => {
     if (currentFlightSegment.length === 0) return undefined;
     const dataIndex = Math.min(progress, currentFlightSegment.length - 1);
     return currentFlightSegment[dataIndex];
   }, [currentFlightSegment, progress]);
 
-  if (linePoints.length < 2 && !currentPlaneData) { // Adjusted condition
+  if (linePoints.length < 2 && !currentPlaneData) {
     return null;
   }
 

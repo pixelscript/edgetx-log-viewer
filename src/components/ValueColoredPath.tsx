@@ -60,7 +60,7 @@ const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string
       segments={segments}
       minVal={minVal}
       maxVal={maxVal}
-      lineWidth={5} // Default thickness
+      lineWidth={5}
       colorScaleFn={valuePathColorScaleFn}
     />
   );

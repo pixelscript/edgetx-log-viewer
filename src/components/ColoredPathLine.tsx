@@ -12,7 +12,7 @@ interface ColoredPathLineProps {
 }
 
 export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color, lineWidth = 5 }) => {
-  const { size } = useThree(); // Get canvas size
+  const { size } = useThree();
 
   const geometry = useMemo(() => {
     if (points.length < 2) return null;
