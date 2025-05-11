@@ -21,7 +21,7 @@ const initialState: UiState = {
     message: null,
     isModalVisible: false,
   },
-  mapType: MapType.OpenStreetMap,
+  mapType: MapType.BingMapHybrid,
 };
 
 const uiSlice = createSlice({
