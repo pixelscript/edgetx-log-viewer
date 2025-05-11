@@ -1,5 +1,5 @@
 import { LogEntry, GPS, FlightStats, LogValue} from '../state/types';
-
+import { EARTH_RADIUS } from '../consts';
 /**
  * Calculates the Haversine distance between two points on the Earth.
  * @param gps1 First GPS coordinate { lat, long }
@@ -7,7 +7,7 @@ import { LogEntry, GPS, FlightStats, LogValue} from '../state/types';
  * @returns Distance in kilometers.
  */
 function calculateHaversineDistance(gps1: GPS, gps2: GPS): number {
-  const R = 6371; // Radius of the Earth in km
+  const R = EARTH_RADIUS/1000;
   const dLat = (gps2.lat - gps1.lat) * Math.PI / 180;
   const dLon = (gps2.long - gps1.long) * Math.PI / 180;
   const lat1Rad = gps1.lat * Math.PI / 180;

@@ -1,5 +1,5 @@
 import { createContext, useContext, RefObject } from 'react';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'; // This is the type for the instance
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 type ControlsContextType = {
   controlsRef: RefObject<OrbitControlsImpl | null> | null;

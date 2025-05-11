@@ -11,7 +11,6 @@ export default function Slippy() {
 
   useEffect(() => {
     if (!controlsRef || !controlsRef.current) {
-      // Controls not ready yet, or not provided
       return;
     }
     const currentControls = controlsRef.current;
@@ -26,30 +25,16 @@ export default function Slippy() {
         (groupRef.current as THREE.Group).add(globe);
       }
 
-
-      // camera.near = 1e-3;
-      // camera.far = EARTH_RADIUS * 100;
-      // camera.updateProjectionMatrix();
-      // camera.position.z = EARTH_RADIUS * 6; // Position is now controlled by CameraController
-
-      // currentControls.minDistance = EARTH_RADIUS * (1 + 5 / 2 ** globe.maxLevel);
-      // currentControls.maxDistance = camera.far - EARTH_RADIUS;
-
       globe.updatePov(camera);
       const handleChange = () => {
         globe.updatePov(camera);
-        // const distToSurface = camera.position.distanceTo(globe.position) - EARTH_RADIUS;
-        // currentControls.rotateSpeed = distToSurface / EARTH_RADIUS * 0.4;
-        // currentControls.zoomSpeed = Math.sqrt(distToSurface / EARTH_RADIUS) * 0.6;
       };
       currentControls.addEventListener('change', handleChange);
 
-      // Cleanup function
       return () => {
         currentControls.removeEventListener('change', handleChange);
         if (groupRef.current && globe) {
           (groupRef.current as THREE.Group).remove(globe);
-          // globe.dispose(); // If globe has a dispose method
         }
       };
     }

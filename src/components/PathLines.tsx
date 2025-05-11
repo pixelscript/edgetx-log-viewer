@@ -6,7 +6,8 @@ import type { Path } from '../state/types/generatedTypes';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { isEqual } from 'lodash';
-import { ColoredPathLine } from './ColoredPathLine'; // Added import
+import { ColoredPathLine } from './ColoredPathLine';
+import ValueColoredPath from './ValueColoredPath';
 
 const getModeColor = (mode: string): THREE.ColorRepresentation => {
   switch (mode) {
@@ -21,81 +22,6 @@ const getModeColor = (mode: string): THREE.ColorRepresentation => {
     default: return 'white';
   }
 };
-
-// Removed ModePathLine component
-
-const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string }> = ({ logEntries, selectedField }) => {
-  const { minVal, maxVal } = useMemo(() => {
-    const values = logEntries
-      .map(entry => entry[selectedField])
-      .filter(val => typeof val === 'number' && isFinite(val)) as number[];
-
-    if (values.length === 0) return { minVal: 0, maxVal: 1 };
-
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    return { minVal: min, maxVal: max === min ? min + 0.000001 : max };
-  }, [logEntries, selectedField]);
-
-  const line = useMemo(() => {
-    if (logEntries.length < 2) return null;
-
-    const points: THREE.Vector3[] = [];
-    const colors: number[] = [];
-    const hue = 0 / 360;
-
-    for (let i = 1; i < logEntries.length; i++) {
-      const prevEntry = logEntries[i - 1];
-      const currentEntry = logEntries[i];
-
-      const prevGps = prevEntry['gps'] as GPS | undefined;
-      const currentGps = currentEntry['gps'] as GPS | undefined;
-      const prevAlt = prevEntry['alt'] as number | undefined;
-      const currentAlt = currentEntry['alt'] as number | undefined;
-
-      if (!prevGps || !currentGps || typeof prevAlt !== 'number' || typeof currentAlt !== 'number') {
-        continue;
-      }
-
-      try {
-        const startPoint = latLongToCartesian(prevGps.lat, prevGps.long, prevAlt);
-        const endPoint = latLongToCartesian(currentGps.lat, currentGps.long, currentAlt);
-
-        points.push(startPoint, endPoint);
-
-        const value = prevEntry[selectedField];
-        let saturation = 0.2;
-        if (typeof value === 'number' && isFinite(value)) {
-          const normalizedValue = (value - minVal) / (maxVal - minVal);
-          const clampedValue = Math.max(0, Math.min(1, normalizedValue));
-          saturation = 0.2 + clampedValue * 0.8;
-        }
-
-        const color = new THREE.Color().setHSL(hue, saturation, 0.5);
-
-        colors.push(color.r, color.g, color.b);
-        colors.push(color.r, color.g, color.b);
-
-      } catch (error) {
-        console.error(`Error processing segment ${i}:`, error, { prevEntry, currentEntry });
-      }
-    }
-
-    if (points.length === 0) return null;
-
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-    const material = new THREE.LineBasicMaterial({ vertexColors: true });
-    return new THREE.LineSegments(geometry, material);
-
-  }, [logEntries, selectedField, minVal, maxVal]);
-
-  if (!line) return null;
-
-  return <primitive object={line} />;
-};
-
 
 const groupEntriesByMode = (logEntries: LogEntry[]): { mode: string; path: Path }[] => {
   if (!logEntries || logEntries.length === 0) return [];

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber'; // Added import
+import { useThree } from '@react-three/fiber';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -35,9 +35,6 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
 
   const line = useMemo(() => {
     if (!geometry || !material) return null;
-    // The material is already configured with resolution, so LineSegments2 should use it.
-    // The line object itself might need its material.resolution updated if the canvas resizes.
-    // However, useMemo for material already depends on 'size', so it will recreate if size changes.
     const lineSegments = new LineSegments2(geometry, material);
     return lineSegments;
   }, [geometry, material]);
