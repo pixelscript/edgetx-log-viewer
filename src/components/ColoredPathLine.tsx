@@ -25,11 +25,12 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
   const material = useMemo(() => {
     if (!geometry) return null;
     return new LineMaterial({
+      linewidth: lineWidth,
       color: color,
-      linewidth: lineWidth, // Use directly, assuming screen units
-      dashed: false,
       alphaToCoverage: true,
-      resolution: new THREE.Vector2(size.width, size.height), // Set resolution
+      resolution: new THREE.Vector2(size.width, size.height),
+      depthTest: false,
+      transparent: true,
     });
   }, [geometry, color, lineWidth, size]);
 
