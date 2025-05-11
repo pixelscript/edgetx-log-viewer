@@ -7,6 +7,7 @@ import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { LogEntry, GPS } from '../state/types/logTypes';
 import { EARTH_CENTER } from '../consts';
 import { isEqual } from 'lodash';
+import { ColoredPathLine } from './ColoredPathLine'; // Added import
 export type PlanePoint = {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;
@@ -50,10 +51,7 @@ const PlaybackPathLine: React.FC = () => {
     return currentFlightSegment.map(p => p.position);
   }, [currentFlightSegment]);
 
-  const lineGeometry = useMemo(() => {
-    if (linePoints.length < 2) return undefined;
-    return new THREE.BufferGeometry().setFromPoints(linePoints);
-  }, [linePoints]);
+  // Removed lineGeometry useMemo as it's handled by ColoredPathLine
 
   const currentPlaneData = useMemo(() => {
     if (currentFlightSegment.length === 0) return undefined;
@@ -61,7 +59,7 @@ const PlaybackPathLine: React.FC = () => {
     return currentFlightSegment[dataIndex];
   }, [currentFlightSegment, progress]);
 
-  if (!lineGeometry && !currentPlaneData) {
+  if (linePoints.length < 2 && !currentPlaneData) { // Adjusted condition
     return null;
   }
 
@@ -69,11 +67,8 @@ const PlaybackPathLine: React.FC = () => {
 
   return (
     <>
-      {lineGeometry && (
-        <line>
-          <primitive object={lineGeometry} attach="geometry" />
-          <lineBasicMaterial attach="material" color={'white'} linewidth={1} linecap={'round'} linejoin={'round'} />
-        </line>
+      {linePoints.length >= 2 && (
+        <ColoredPathLine points={linePoints} color={'white'} lineWidth={5} />
       )}
       {currentPlaneData && (
         <mesh

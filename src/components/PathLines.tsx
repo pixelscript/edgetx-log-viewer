@@ -6,9 +6,8 @@ import type { Path } from '../state/types/generatedTypes';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { isEqual } from 'lodash';
-import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { ColoredPathLine } from './ColoredPathLine'; // Added import
+
 const getModeColor = (mode: string): THREE.ColorRepresentation => {
   switch (mode) {
     case 'OK': return 'green';
@@ -23,36 +22,7 @@ const getModeColor = (mode: string): THREE.ColorRepresentation => {
   }
 };
 
-const ModePathLine: React.FC<{ pathCoordinates: Path; mode: string }> = ({ pathCoordinates, mode }) => {
-  const points = useMemo(() => {
-    return pathCoordinates
-      .filter(coord => typeof coord.latitude === 'number' && typeof coord.longitude === 'number')
-      .map(coord => latLongToCartesian(coord.latitude, coord.longitude, coord.altitude));
-  }, [pathCoordinates]);
-
-  const geometry = useMemo(() => {
-    if (points.length < 2) return null;
-    const lineSegmentsGeometry = new LineGeometry();;
-    const positions = points.flatMap(point => [point.x, point.y, point.z]);
-    lineSegmentsGeometry.setPositions(positions);
-    return lineSegmentsGeometry;
-  }, [points]);
-  
-  if (!geometry) return null;
-  const color = useMemo(() => getModeColor(mode), [mode]);
-  const material = useMemo(() => {
-    return new LineMaterial({
-      color: color,
-      linewidth: 5,
-      dashed: false,
-      alphaToCoverage: true,
-    });
-  }, [color]);
-  const line = useMemo(() => geometry && new LineSegments2(geometry, material), [geometry, material]);
-  return <primitive object={line} />;
-
-
-};
+// Removed ModePathLine component
 
 const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string }> = ({ logEntries, selectedField }) => {
   const { minVal, maxVal } = useMemo(() => {
@@ -178,9 +148,20 @@ export const PathLines: React.FC = () => {
   } else if (modePaths.length > 0) {
     return (
       <>
-        {modePaths.map((pathSection, index) => (
-          <ModePathLine key={`${pathSection.mode}-${index}-${selectedLogFilename}`} pathCoordinates={pathSection.path} mode={pathSection.mode} />
-        ))}
+        {modePaths.map((pathSection, index) => {
+          const points = pathSection.path
+            .filter(coord => typeof coord.latitude === 'number' && typeof coord.longitude === 'number')
+            .map(coord => latLongToCartesian(coord.latitude, coord.longitude, coord.altitude));
+          const color = getModeColor(pathSection.mode);
+          return (
+            <ColoredPathLine
+              key={`${pathSection.mode}-${index}-${selectedLogFilename}`}
+              points={points}
+              color={color}
+              lineWidth={5}
+            />
+          );
+        })}
       </>
     );
   } else {
