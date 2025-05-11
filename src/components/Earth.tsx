@@ -16,13 +16,14 @@ const EarthScene = ({
   const isPlaybackMode = viewMode === 'playback';
   return (
     <Canvas camera={{ fov: 75, near: 0.1, far: 1e9 }} gl={{ logarithmicDepthBuffer: true, antialias: true }}>
-      <color attach="background" args={[0x000000]} />
-      <Slippy />
-      <Lights />
-      <EarthSphere textureUrl={textureUrl} />
-      {!isPlaybackMode && <PathLines />}
-      {isPlaybackMode && <PlaybackPathLine />}
-      <CameraController />
+      <CameraController>
+        <color attach="background" args={[0x000000]} />
+        <Lights />
+        <EarthSphere textureUrl={textureUrl} />
+        {!isPlaybackMode && <PathLines />}
+        {isPlaybackMode && <PlaybackPathLine />}
+        <Slippy />
+      </CameraController>
     </Canvas>
   );
 };

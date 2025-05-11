@@ -1,6 +1,8 @@
 
-import { OrbitControls} from '@react-three/drei';
-import { useEffect, useRef, useMemo } from 'react';
+import { OrbitControls } from '@react-three/drei';
+import { useEffect, useRef, useMemo, PropsWithChildren } from 'react';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { ControlsContext } from '../contexts/ControlsContext';
 import * as THREE from 'three';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
@@ -24,8 +26,8 @@ const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; lon
 };
 
 
-export const CameraController = () => {
-  const controlsRef = useRef<any>(null);
+export const CameraController = ({ children }: PropsWithChildren) => {
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const { camera, gl } = useThree();
   const dispatch = useDispatch();
   const { selectedLogFilename, loadedLogs } = useSelector((state: RootState) => {
@@ -45,41 +47,44 @@ export const CameraController = () => {
       latLongToCartesian(coord.latitude, coord.longitude, coord.altitude)
     );
 
-    let camPos: THREE.Vector3;
+    // let camPos: THREE.Vector3;
     let targetCenter: THREE.Vector3;
 
     if (points.length === 0) {
       targetCenter = latLongToCartesian(51.509865, -0.118092, 0);
-      camPos = latLongToCartesian(51.509865, -0.118092, EARTH_RADIUS * 1.5);
+      // camPos = latLongToCartesian(51.509865, -0.118092, EARTH_RADIUS * 1.5);
     } else {
       const box = new THREE.Box3().setFromPoints(points);
       targetCenter = new THREE.Vector3();
-      box.getCenter(targetCenter);
-      const startCoord = pathCoordinates[0];
-      camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
+      // box.getCenter(targetCenter);
+      // const startCoord = pathCoordinates[0];
+      // camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
     }
     dispatch(setTargetCenter({x: targetCenter.x, y: targetCenter.y, z: targetCenter.z}));
-    if (controlsRef.current) {
-        controlsRef.current.target.copy(targetCenter);
-        camera.position.copy(camPos);
-        controlsRef.current.update();
-    } else {
-        camera.position.copy(camPos);
-        camera.lookAt(targetCenter);
-    }
+    // if (controlsRef.current) {
+    //     controlsRef.current.target.copy(targetCenter);
+    //     camera.position.copy(camPos);
+    //     controlsRef.current.update();
+    // } else {
+    //     camera.position.copy(camPos);
+    //     camera.lookAt(targetCenter);
+    // }
 
   }, [pathCoordinates, camera, controlsRef]);
 
   return (
-    <OrbitControls
-      ref={controlsRef}
-      makeDefault
-      camera={camera}
-      domElement={gl.domElement}
-      enableDamping
-      dampingFactor={1}
-      zoomSpeed={0.4}
-      rotateSpeed={0.3}
-    />
+    <ControlsContext.Provider value={{ controlsRef }}>
+      <OrbitControls
+        ref={controlsRef}
+        makeDefault
+        camera={camera}
+        domElement={gl.domElement}
+        enableDamping
+        dampingFactor={1}
+        zoomSpeed={0.4}
+        rotateSpeed={0.3}
+      />
+      {children}
+    </ControlsContext.Provider>
   );
 };
