@@ -27,13 +27,13 @@ export default function Slippy() {
       }
 
 
-      camera.near = 1e-3;
-      camera.far = EARTH_RADIUS * 100;
-      camera.updateProjectionMatrix();
+      // camera.near = 1e-3;
+      // camera.far = EARTH_RADIUS * 100;
+      // camera.updateProjectionMatrix();
       // camera.position.z = EARTH_RADIUS * 6; // Position is now controlled by CameraController
 
-      currentControls.minDistance = EARTH_RADIUS * (1 + 5 / 2 ** globe.maxLevel);
-      currentControls.maxDistance = camera.far - EARTH_RADIUS;
+      // currentControls.minDistance = EARTH_RADIUS * (1 + 5 / 2 ** globe.maxLevel);
+      // currentControls.maxDistance = camera.far - EARTH_RADIUS;
 
       globe.updatePov(camera);
       const handleChange = () => {

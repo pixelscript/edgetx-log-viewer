@@ -47,28 +47,28 @@ export const CameraController = ({ children }: PropsWithChildren) => {
       latLongToCartesian(coord.latitude, coord.longitude, coord.altitude)
     );
 
-    // let camPos: THREE.Vector3;
+    let camPos: THREE.Vector3;
     let targetCenter: THREE.Vector3;
 
     if (points.length === 0) {
       targetCenter = latLongToCartesian(51.509865, -0.118092, 0);
-      // camPos = latLongToCartesian(51.509865, -0.118092, EARTH_RADIUS * 1.5);
+      camPos = latLongToCartesian(51.509865, -0.118092, EARTH_RADIUS * 1.5);
     } else {
       const box = new THREE.Box3().setFromPoints(points);
       targetCenter = new THREE.Vector3();
-      // box.getCenter(targetCenter);
-      // const startCoord = pathCoordinates[0];
-      // camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
+      box.getCenter(targetCenter);
+      const startCoord = pathCoordinates[0];
+      camPos = latLongToCartesian(startCoord.latitude, startCoord.longitude,  2000);
     }
     dispatch(setTargetCenter({x: targetCenter.x, y: targetCenter.y, z: targetCenter.z}));
-    // if (controlsRef.current) {
-    //     controlsRef.current.target.copy(targetCenter);
-    //     camera.position.copy(camPos);
-    //     controlsRef.current.update();
-    // } else {
-    //     camera.position.copy(camPos);
-    //     camera.lookAt(targetCenter);
-    // }
+    if (controlsRef.current) {
+        controlsRef.current.target.copy(targetCenter);
+        camera.position.copy(camPos);
+        controlsRef.current.update();
+    } else {
+        camera.position.copy(camPos);
+        camera.lookAt(targetCenter);
+    }
 
   }, [pathCoordinates, camera, controlsRef]);
 
