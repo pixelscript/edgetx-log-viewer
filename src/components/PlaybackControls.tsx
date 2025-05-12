@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Slider, Button, Group, Box, Select, Checkbox } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { useSelector } from 'react-redux';
@@ -6,33 +6,34 @@ import { RootState } from '../state/store';
 import { isEqual } from 'lodash';
 import { usePlayback } from '../contexts/PlaybackContext';
 
-  const speedOptions = [
-    { value: '1', label: '1x' },
-    { value: '2', label: '2x' },
-    { value: '3', label: '3x' },
-    { value: '4', label: '4x' },
-    { value: '5', label: '5x' },
-    { value: '10', label: '10x' },
-    { value: '20', label: '20x' },
-    { value: '30', label: '30x' },
-    { value: '50', label: '50x' },
-    { value: '100', label: '100x' },
-  ]
+const speedOptions = [
+  { value: '1', label: '1x' },
+  { value: '2', label: '2x' },
+  { value: '3', label: '3x' },
+  { value: '4', label: '4x' },
+  { value: '5', label: '5x' },
+  { value: '10', label: '10x' },
+  { value: '20', label: '20x' },
+  { value: '30', label: '30x' },
+  { value: '40', label: '40x' },
+  { value: '50', label: '50x' },
+  { value: '100', label: '100x' },
+]
 
-  const modelOptions = [
-    { value: 'Small_Airplane', label: 'Airplane' },
-    { value: 'Jet', label: 'Jet' },
-    { value: 'Drone', label: 'Drone' },
-  ];
+const modelOptions = [
+  { value: 'Small_Airplane', label: 'Airplane' },
+  { value: 'Jet', label: 'Jet' },
+  { value: 'Drone', label: 'Drone' },
+];
 
 const PlaybackControls: React.FC = () => {
-  const [ progress, setPlaybackProgress ] = useState(0);
+  const [progress, setPlaybackProgress] = useState(0);
   const { setPlaybackProgress: setGlobalPlaybackProgress, followPlane, setFollowPlane, selectedModel, setSelectedModel } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
   const [multiplier, setMultiplier] = useState(1);
   const selectedLogData = useSelector((state: RootState) =>
     state.logs.selectedLogFilename ? state.logs.loadedLogs[state.logs.selectedLogFilename] : null
-  , isEqual);
+    , isEqual);
   const duration = selectedLogData?.entries.length ? selectedLogData.entries.length - 1 : 100;
   const intervalRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -51,15 +52,17 @@ const PlaybackControls: React.FC = () => {
   useEffect(() => {
     if (isPlaying) {
       if (progress >= duration) {
-          setIsPlaying(false);
-          setPlaybackProgress(duration);
-          setGlobalPlaybackProgress(duration);
-          return;
+        setIsPlaying(false);
+        setPlaybackProgress(duration);
+        setGlobalPlaybackProgress(duration);
+        return;
       }
-      intervalRef.current = setInterval(() => {
-        setPlaybackProgress(prevProgress => Math.min(prevProgress + multiplier, duration));
+      const intValLength = Math.max(selectedLogData?.entries[progress].timeDelta as number, 1) / multiplier;
+      console.log('Interval length:', intValLength);
+      intervalRef.current = setTimeout(() => {
+        setPlaybackProgress(prevProgress => Math.min(prevProgress + 1, duration));
         setGlobalPlaybackProgress(progress);
-      }, 1);
+      }, intValLength);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);

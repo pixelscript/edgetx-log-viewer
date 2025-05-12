@@ -1,4 +1,4 @@
-import { LogEntry, GPS, FlightStats, LogValue} from '../state/types';
+import { LogEntry, GPS, FlightStats, LogValue } from '../state/types';
 import { EARTH_RADIUS } from '../consts';
 /**
  * Calculates the Haversine distance between two points on the Earth.
@@ -7,7 +7,7 @@ import { EARTH_RADIUS } from '../consts';
  * @returns Distance in kilometers.
  */
 function calculateHaversineDistance(gps1: GPS, gps2: GPS): number {
-  const R = EARTH_RADIUS/1000;
+  const R = EARTH_RADIUS / 1000;
   const dLat = (gps2.lat - gps1.lat) * Math.PI / 180;
   const dLon = (gps2.long - gps1.long) * Math.PI / 180;
   const lat1Rad = gps1.lat * Math.PI / 180;
@@ -35,8 +35,6 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
   let maxDistanceKm: number | null = null;
   let maxAltitudeM: number | null = null;
   let minAltitudeM: number | null = null;
-  let firstTimestampMs: number | null = null;
-  let lastTimestampMs: number | null = null;
   const modeCounts: { [mode: string]: number } = {};
   let startGps: GPS | null = null;
 
@@ -48,34 +46,6 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
     }
     return undefined;
   };
-
-  const parseTimeToMs = (entry: LogEntry): number | null => {
-    const dateStr = entry.date;
-    const timeStr = entry.time;
-
-    if (typeof dateStr === 'string' && typeof timeStr === 'string') {
-      const dateTimeString = `${dateStr}T${timeStr}Z`;
-      const date = new Date(dateTimeString);
-      if (!isNaN(date.getTime())) {
-        return date.getTime();
-      }
-    }
-
-    const timeValue = getValue(entry, ['timestamp', 'dateTime']);
-    if (timeValue !== undefined) {
-      if (typeof timeValue === 'number') {
-        return timeValue > 10000000000 ? timeValue : timeValue * 1000;
-      }
-      if (typeof timeValue === 'string') {
-        const date = new Date(timeValue);
-        if (!isNaN(date.getTime())) {
-          return date.getTime();
-        }
-      }
-    }
-    return null;
-  };
-
 
   for (const entry of logEntries) {
     const gpsValue = getValue(entry, ['gps']);
@@ -103,19 +73,6 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
       }
     }
 
-    const currentTimestampMs = parseTimeToMs(entry);
-
-    if (currentTimestampMs !== null) {
-      if (firstTimestampMs === null) {
-        firstTimestampMs = currentTimestampMs;
-      }
-      if (lastTimestampMs === null || currentTimestampMs >= lastTimestampMs) {
-        lastTimestampMs = currentTimestampMs;
-      } else if (currentTimestampMs < firstTimestampMs) {
-        firstTimestampMs = currentTimestampMs;
-      }
-    }
-
     const modeValue = getValue(entry, ['flightMode', 'mode', 'fm']);
     if (modeValue !== undefined && typeof modeValue === 'string' && modeValue.trim() !== '') {
       const modeStr = modeValue.trim();
@@ -123,12 +80,8 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
     }
   }
 
-  let flightDurationMinutes: number | null = null;
-  if (firstTimestampMs !== null && lastTimestampMs !== null && lastTimestampMs >= firstTimestampMs) {
-    const durationMs = lastTimestampMs - firstTimestampMs;
-    flightDurationMinutes = durationMs / (1000 * 60);
-    if (flightDurationMinutes < 0) flightDurationMinutes = null;
-  }
+  const durationMs = (logEntries[logEntries.length - 1].timeMs as number) - (logEntries[0].timeMs as number);
+  const flightDurationMinutes = durationMs / (1000 * 60);
 
   let mostUsedMode: string | null = null;
   let maxCount = 0;

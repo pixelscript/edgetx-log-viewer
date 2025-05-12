@@ -2,6 +2,21 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { LogEntry, LogsState } from './types/logTypes';
 import { calculateFlightStats } from '../utils/statsUtils';
 
+  const parseTimeToMs = (entry: LogEntry): number => {
+    const dateStr = entry.date;
+    const timeStr = entry.time;
+
+    if (typeof dateStr === 'string' && typeof timeStr === 'string') {
+      const dateTimeString = `${dateStr}T${timeStr}Z`;
+      const date = new Date(dateTimeString);
+      if (!isNaN(date.getTime())) {
+        return date.getTime();
+      }
+    }
+    return 0;
+  };
+
+
 const isNumericalField = (key: string, value: any): boolean => {
   if (typeof value !== 'number') return false;
   const excludedKeys = ['Date', 'Time', 'GPS', 'FM'];
@@ -38,9 +53,24 @@ const removeInvalidGPSAndFormat = (entries: LogEntry[]): LogEntry[] => {
     } else {
       console.warn(`Invalid GPS data in entry: ${JSON.stringify(entry)}`);
     }
+    if (entry.time && typeof entry.time === 'string') {
+      entry.timeMs = parseTimeToMs(entry);
+    }
   }
   console.log(`Filtered ${entries.length - validEntries.length} invalid entries based on GPS.`);
   return validEntries;
+};
+
+const addTimeDelta = (entries: LogEntry[]): LogEntry[] => {
+  if (entries.length === 0) return [];
+  const updatedEntries = entries.map((entry, index) => {
+    const timeDelta = (entries[Math.min(index + 1, entries.length-1)].timeMs as number) - (entry.timeMs as number);
+    return {
+      ...entry,
+      timeDelta
+    };
+  });
+  return updatedEntries;
 };
 
 
@@ -102,13 +132,14 @@ const logsSlice = createSlice({
       );
       const uniqueEntries = removeDuplicates(entries);
       const processedEntries = removeInvalidGPSAndFormat(uniqueEntries);
+      const entriesWithTimeDelta = addTimeDelta(processedEntries);
 
-      if (processedEntries.length > 0) {
-        const stats = calculateFlightStats(processedEntries);
+      if (entriesWithTimeDelta.length > 0) {
+        const stats = calculateFlightStats(entriesWithTimeDelta);
         const { modelName, logDate, logTime } = parseFilename(filename);
         state.loadedLogs[filename] = {
           filename,
-          entries: processedEntries,
+          entries: entriesWithTimeDelta,
           numericalFields,
           stats,
           modelName,
