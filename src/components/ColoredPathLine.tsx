@@ -29,7 +29,7 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
       color: color,
       alphaToCoverage: true,
       resolution: new THREE.Vector2(size.width, size.height),
-      depthTest: false,
+      depthTest: true,
       transparent: true,
     });
   }, [geometry, color, lineWidth, size]);

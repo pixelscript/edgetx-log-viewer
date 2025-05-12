@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import * as THREE from 'three';
+import { useControlsContext } from '../contexts/ControlsContext';
+import { useThree } from '@react-three/fiber';
 import { RootState } from '../state/store';
 import { usePlayback } from '../contexts/PlaybackContext';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
@@ -19,7 +21,10 @@ export type PlanePoint = {
 const PlaybackPathLine: React.FC = () => {
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
-  const { playbackProgress: progress } = usePlayback();
+  const targetCenterFromStore = useSelector((state: RootState) => state.logs.targetCenter);
+  const { playbackProgress: progress, followPlane } = usePlayback();
+  const { controlsRef } = useControlsContext();
+  const { camera } = useThree();
 
   const allFlightDataPoints = useMemo(() => {
     if (!selectedLogFilename) return [];
@@ -56,6 +61,17 @@ const PlaybackPathLine: React.FC = () => {
     const dataIndex = Math.min(progress, currentFlightSegment.length - 1);
     return currentFlightSegment[dataIndex];
   }, [currentFlightSegment, progress]);
+
+  useEffect(() => {
+    if (controlsRef && controlsRef.current && camera) {
+      if (followPlane && currentPlaneData && currentPlaneData.position) {
+        const offset = camera.position.clone().sub(controlsRef.current.target);
+        controlsRef.current.target.copy(currentPlaneData.position);
+        camera.position.copy(currentPlaneData.position).add(offset);
+        controlsRef.current.update();
+      }
+    }
+  }, [currentPlaneData, controlsRef, camera, followPlane, targetCenterFromStore]);
 
   if (linePoints.length < 2 && !currentPlaneData) {
     return null;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Slider, Button, Group, Box, Select } from '@mantine/core';
+import { Slider, Button, Group, Box, Select, Checkbox } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
@@ -24,7 +24,7 @@ const speedOptions = [
 ]
 const PlaybackControls: React.FC = () => {
   const [ progress, setPlaybackProgress ] = useState(0);
-  const { setPlaybackProgress: setGlobalPlaybackProgress } = usePlayback();
+  const { setPlaybackProgress: setGlobalPlaybackProgress, followPlane, setFollowPlane } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
   const [multiplier, setMultiplier] = useState(1);
   const selectedLogData = useSelector((state: RootState) =>
@@ -102,6 +102,13 @@ const PlaybackControls: React.FC = () => {
           label={(value) => `${Math.round((value / duration) * 100)}%`}
           style={{ flex: 1 }}
           disabled={!selectedLogData}
+        />
+        <Checkbox
+          label="Follow Plane"
+          checked={followPlane}
+          onChange={(event) => setFollowPlane(event.currentTarget.checked)}
+          disabled={!selectedLogData}
+          size="xs"
         />
       </Group>
     </Box>
