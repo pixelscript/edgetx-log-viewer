@@ -33,16 +33,20 @@ export const ColoredValuePathLine: React.FC<ColoredValuePathLineProps> = ({
 }) => {
   const { size } = useThree();
 
-  const { geometry, colorsArray } = useMemo(() => {
-    if (segments.length === 0) return { geometry: null, colorsArray: null };
+  const { geometry, colorsArray, offset } = useMemo(() => {
+    if (segments.length === 0) return { geometry: null, colorsArray: null, offset: null };
 
+    const pathOffset = segments[0].startPoint.clone();
     const positions: number[] = [];
     const colors: number[] = [];
     const range = maxVal - minVal === 0 ? 1 : maxVal - minVal;
 
     segments.forEach(segment => {
-      positions.push(segment.startPoint.x, segment.startPoint.y, segment.startPoint.z);
-      positions.push(segment.endPoint.x, segment.endPoint.y, segment.endPoint.z);
+      const relativeStart = segment.startPoint.clone().sub(pathOffset);
+      const relativeEnd = segment.endPoint.clone().sub(pathOffset);
+
+      positions.push(relativeStart.x, relativeStart.y, relativeStart.z);
+      positions.push(relativeEnd.x, relativeEnd.y, relativeEnd.z);
 
       const normalizedValue = Math.max(0, Math.min(1, (segment.value - minVal) / range));
       const color = colorScaleFn(normalizedValue);
@@ -51,13 +55,13 @@ export const ColoredValuePathLine: React.FC<ColoredValuePathLineProps> = ({
       colors.push(color.r, color.g, color.b);
     });
 
-    if (positions.length === 0) return { geometry: null, colorsArray: null };
+    if (positions.length === 0) return { geometry: null, colorsArray: null, offset: null };
 
     const lineGeom = new LineGeometry();
     lineGeom.setPositions(positions);
     lineGeom.setColors(colors);
 
-    return { geometry: lineGeom, colorsArray: colors };
+    return { geometry: lineGeom, colorsArray: colors, offset: pathOffset };
   }, [segments, minVal, maxVal, colorScaleFn]);
 
   const material = useMemo(() => {
@@ -72,11 +76,12 @@ export const ColoredValuePathLine: React.FC<ColoredValuePathLineProps> = ({
   }, [geometry, lineWidth, size]);
 
   const line = useMemo(() => {
-    if (!geometry || !material || !colorsArray) return null;
+    if (!geometry || !material || !colorsArray || !offset) return null;
     const lineSegments = new LineSegments2(geometry, material);
+    lineSegments.position.copy(offset);
     lineSegments.computeLineDistances();
     return lineSegments;
-  }, [geometry, material, colorsArray]);
+  }, [geometry, material, colorsArray, offset]);
 
   if (!line) return null;
 

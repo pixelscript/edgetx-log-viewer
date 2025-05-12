@@ -15,9 +15,16 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
   const { size } = useThree();
 
   const geometry = useMemo(() => {
-    if (points.length < 2) return null;
+    if (points.length < 2) return null; // Need at least two points for a line
+
+    // Calculate offset from the first point
+    const offset = points[0].clone();
+
+    // Create points relative to the offset
+    const relativePoints = points.map(p => p.clone().sub(offset));
+
     const lineSegmentsGeometry = new LineGeometry();
-    const positions = points.flatMap(point => [point.x, point.y, point.z]);
+    const positions = relativePoints.flatMap(point => [point.x, point.y, point.z]);
     lineSegmentsGeometry.setPositions(positions);
     return lineSegmentsGeometry;
   }, [points]);
@@ -35,10 +42,14 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
   }, [geometry, color, lineWidth, size]);
 
   const line = useMemo(() => {
-    if (!geometry || !material) return null;
+    if (!geometry || !material || points.length === 0) return null;
+
     const lineSegments = new LineSegments2(geometry, material);
+    const offset = points[0];
+    lineSegments.position.copy(offset);
+
     return lineSegments;
-  }, [geometry, material]);
+  }, [geometry, material, points]);
 
   if (!line) return null;
 
