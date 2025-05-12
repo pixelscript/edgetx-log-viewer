@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 
-const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string }> = ({ logEntries, selectedField }) => {
+const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string; altOffset: number}> = ({ logEntries, selectedField, altOffset }) => {
   const { minVal, maxVal } = useMemo(() => {
     const values = logEntries
       .map(entry => entry[selectedField])
@@ -37,8 +37,8 @@ const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string
       }
 
       try {
-        const startPoint = latLongToCartesian(prevGps.lat, prevGps.long, prevAlt);
-        const endPoint = latLongToCartesian(currentGps.lat, currentGps.long, currentAlt);
+        const startPoint = latLongToCartesian(prevGps.lat, prevGps.long, prevAlt + altOffset);
+        const endPoint = latLongToCartesian(currentGps.lat, currentGps.long, currentAlt + altOffset);
         segmentData.push({ startPoint, endPoint, value });
       } catch (error) {
         console.error(`Error processing segment ${i} for ValueColoredPath:`, error, { prevEntry, currentEntry });

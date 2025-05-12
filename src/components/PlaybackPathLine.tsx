@@ -29,13 +29,14 @@ const PlaybackPathLine: React.FC = () => {
   const allFlightDataPoints = useMemo(() => {
     if (!selectedLogFilename) return [];
     const logData = loadedLogs[selectedLogFilename];
+    const altOffset = Math.max(0-(logData?.stats.minAltitudeM ?? 0), 0);
     if (!logData || !logData.entries || logData.entries.length === 0) return [];
     const flightPoints = logData.entries
       .map((entry: LogEntry) => {
         const gps = entry['gps'] as GPS | undefined;
         const altitude = entry['alt'] as number | undefined;
         if (gps) {
-          const position = latLongToCartesian(gps.lat, gps.long, altitude ?? 0);
+          const position = latLongToCartesian(gps.lat, gps.long, (altitude ?? 0) + altOffset);
           const normal = new THREE.Vector3().subVectors(position, EARTH_CENTER).normalize()
           const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal)
           return { position, quaternion, roll: entry['roll'], pitch: entry['ptch'], yaw: entry['yaw'] };
@@ -82,7 +83,7 @@ const PlaybackPathLine: React.FC = () => {
   return (
     <>
       {linePoints.length >= 2 && (
-        <ColoredPathLine points={linePoints} color={'white'} lineWidth={5} />
+        <ColoredPathLine points={linePoints} color={'white'} lineWidth={5} depthTest={true} />
       )}
       {currentPlaneData && (
         <mesh

@@ -23,7 +23,7 @@ const getModeColor = (mode: string): THREE.ColorRepresentation => {
   }
 };
 
-const groupEntriesByMode = (logEntries: LogEntry[]): { mode: string; path: Path }[] => {
+const groupEntriesByMode = (logEntries: LogEntry[], altOffset: number = 0): { mode: string; path: Path }[] => {
   if (!logEntries || logEntries.length === 0) return [];
 
   const sections: { mode: string; path: Path }[] = [];
@@ -35,7 +35,7 @@ const groupEntriesByMode = (logEntries: LogEntry[]): { mode: string; path: Path 
     const alt = entry['alt'] as number | undefined;
 
     if (gps && typeof alt === 'number') {
-       const coordinate = { latitude: gps.lat, longitude: gps.long, altitude: alt };
+       const coordinate = { latitude: gps.lat, longitude: gps.long, altitude: alt+altOffset};
       if (!currentSection || currentSection.mode !== mode) {
         currentSection = { mode, path: [coordinate] };
         sections.push(currentSection);
@@ -57,9 +57,10 @@ export const PathLines: React.FC = () => {
   }, isEqual);
   const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
   const logEntries = currentLog?.entries ?? [];
+  const altOffset = Math.max(0-(currentLog?.stats.minAltitudeM ?? 0), 0);
   const modePaths = useMemo(() => {
       if (!selectedField && logEntries.length > 0) {
-          return groupEntriesByMode(logEntries);
+          return groupEntriesByMode(logEntries, altOffset);
       }
       return [];
   }, [logEntries, selectedField]);
@@ -70,7 +71,7 @@ export const PathLines: React.FC = () => {
   }
 
   if (selectedField && logEntries.length > 1) {
-    return <ValueColoredPath logEntries={logEntries} selectedField={selectedField} />;
+    return <ValueColoredPath logEntries={logEntries} selectedField={selectedField} altOffset={altOffset}/>;
   } else if (modePaths.length > 0) {
     return (
       <>
@@ -85,6 +86,7 @@ export const PathLines: React.FC = () => {
               points={points}
               color={color}
               lineWidth={5}
+              depthTest={true}
             />
           );
         })}

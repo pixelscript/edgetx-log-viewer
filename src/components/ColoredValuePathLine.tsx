@@ -71,6 +71,7 @@ export const ColoredValuePathLine: React.FC<ColoredValuePathLineProps> = ({
       vertexColors: true,
       dashed: false,
       alphaToCoverage: true,
+      depthTest: true,
       resolution: new THREE.Vector2(size.width, size.height),
     });
   }, [geometry, lineWidth, size]);

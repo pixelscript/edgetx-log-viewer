@@ -9,9 +9,10 @@ interface ColoredPathLineProps {
   points: THREE.Vector3[];
   color: THREE.ColorRepresentation;
   lineWidth?: number;
+  depthTest?: boolean;
 }
 
-export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color, lineWidth = 5 }) => {
+export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color, lineWidth = 5, depthTest = false }) => {
   const { size } = useThree();
 
   const geometry = useMemo(() => {
@@ -36,7 +37,7 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
       color: color,
       alphaToCoverage: true,
       resolution: new THREE.Vector2(size.width, size.height),
-      depthTest: true,
+      depthTest,
       transparent: true,
     });
   }, [geometry, color, lineWidth, size]);

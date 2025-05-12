@@ -37,6 +37,7 @@ export type LogsState = {
 export type FlightStats = {
   maxDistanceKm: number | null;
   maxAltitudeM: number | null;
+  minAltitudeM: number | null;
   flightDurationMinutes: number | null;
   mostUsedMode: string | null;
 };
