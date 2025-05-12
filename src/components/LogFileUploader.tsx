@@ -8,10 +8,11 @@ import { addLog } from '../state/logsSlice';
 import { showErrorModal } from '../state/uiSlice';
 import { store } from '../state/store';
 import { parseCSV } from '../state/utils/logUtils';
+import { isEqual } from 'lodash';
 
 const LogFileUploader: React.FC<Partial<DropzoneProps>> = (props) => {
   const dispatch = useDispatch();
-  const loadedLogs = useSelector((state: { logs: LoadedLogs }) => state.logs.loadedLogs);
+  const loadedLogs = useSelector((state: { logs: LoadedLogs }) => state.logs.loadedLogs, isEqual);
   const noLogsLoaded = Object.keys(loadedLogs).length === 0;
 
   const processFileContent = (content: string, fileName: string) => {
