@@ -5,16 +5,19 @@ interface PlaybackContextType {
   setPlaybackProgress: React.Dispatch<React.SetStateAction<number>>;
   followPlane: boolean;
   setFollowPlane: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedModel: string;
+  setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined);
 
 export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [playbackProgress, setPlaybackProgress] = useState(0);
-  const [followPlane, setFollowPlane] = useState(true); // Default to true
+  const [followPlane, setFollowPlane] = useState(true);
+  const [selectedModel, setSelectedModel] = useState('Small_Airplane'); 
 
   return (
-    <PlaybackContext.Provider value={{ playbackProgress, setPlaybackProgress, followPlane, setFollowPlane }}>
+    <PlaybackContext.Provider value={{ playbackProgress, setPlaybackProgress, followPlane, setFollowPlane, selectedModel, setSelectedModel }}>
       {children}
     </PlaybackContext.Provider>
   );
