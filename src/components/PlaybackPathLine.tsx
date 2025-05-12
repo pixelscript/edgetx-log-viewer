@@ -28,10 +28,10 @@ const PlaybackPathLine: React.FC = () => {
   const { controlsRef } = useControlsContext();
   const { camera } = useThree();
 
-  let rotation = [0, -Math.PI / 2, 0];
+  let rotation = new THREE.Euler(0, -Math.PI / 2, 0);
   let scale = 1;
   if (selectedModel === 'Jet') {
-    rotation = [0, Math.PI / 2, 0];
+    rotation = new THREE.Euler(0, Math.PI / 2, 0);
   }
   if (selectedModel === 'Drone') {
     scale = 10;
