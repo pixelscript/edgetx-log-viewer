@@ -16,12 +16,8 @@ export const ColoredPathLine: React.FC<ColoredPathLineProps> = ({ points, color,
   const { size } = useThree();
 
   const geometry = useMemo(() => {
-    if (points.length < 2) return null; // Need at least two points for a line
-
-    // Calculate offset from the first point
+    if (points.length < 2) return null;
     const offset = points[0].clone();
-
-    // Create points relative to the offset
     const relativePoints = points.map(p => p.clone().sub(offset));
 
     const lineSegmentsGeometry = new LineGeometry();

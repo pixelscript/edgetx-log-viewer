@@ -92,7 +92,6 @@ const PlaybackPathLine: React.FC = () => {
     const loader = new GLTFLoader();
     const currentGroup = groupRef.current;
 
-    // Clear previous model
     while (currentGroup.children.length > 0) {
       currentGroup.remove(currentGroup.children[0]);
     }
@@ -102,7 +101,6 @@ const PlaybackPathLine: React.FC = () => {
     loader.load(
       modelPath,
       function (gltf) {
-        // Ensure the group still exists (component might unmount during load)
         if (groupRef.current) {
           groupRef.current.add(gltf.scene);
         }
