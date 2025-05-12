@@ -11,10 +11,10 @@ export const EarthSphere = ({ textureUrl }: { textureUrl?: string }) => {
         <sphereGeometry args={[EARTH_RADIUS * 1.01, 128, 128]} />
         <shaderMaterial {...fresnelMat}/>
       </mesh>
-      {/* <mesh>
-        <sphereGeometry args={[EARTH_RADIUS, 128, 128]} />
+      <mesh>
+        <sphereGeometry args={[EARTH_RADIUS * 0.998, 128, 128]} />
         <meshStandardMaterial {...materialProps} roughness={1.0} metalness={0.0} />
-      </mesh> */}
+      </mesh>
     </group>
   );
 };

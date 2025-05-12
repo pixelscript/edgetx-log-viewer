@@ -19,10 +19,10 @@ const EarthScene = ({
       <CameraController>
         <color attach="background" args={[0x000000]} />
         <Lights />
+        <Slippy />
         <EarthSphere textureUrl={textureUrl} />
         {!isPlaybackMode && <PathLines />}
         {isPlaybackMode && <PlaybackPathLine />}
-        <Slippy />
       </CameraController>
     </Canvas>
   );
