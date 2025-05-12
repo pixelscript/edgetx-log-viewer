@@ -37,9 +37,6 @@ export default function Slippy() {
 
   const getTileUrl = (mapType: MapType, x: number, y: number, l: number): string => {
     switch (mapType) {
-      case MapType.MapBox:
-        console.warn('MapBox tile URL requires an access token and style. Using OpenStreetMap as fallback.');
-        return `https://tile.openstreetmap.org/${l}/${x}/${y}.png`;
       case MapType.EsriWorld:
         return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
       case MapType.BingMap:

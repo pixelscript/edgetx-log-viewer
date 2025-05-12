@@ -1,5 +1,5 @@
 import "@mantine/core/styles.css";
-import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select } from "@mantine/core";
+import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select, Paper } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
@@ -66,18 +66,22 @@ export default function Main() {
         <AppShell.Navbar p="md">
           <LogSelectorTable />
           <LogFileUploader />
-          <Select
-            label="Map Type"
-            data={mapTypeOptions}
-            value={currentMapType}
-            onChange={(value) => {
-              if (value) {
-                dispatch(setMapType(value as MapType));
-              }
-            }}
-            mt="md"
-            size="sm"
-          />
+          <Paper withBorder shadow="sm" p="sm" mt="md">
+            <Group justify="space-between" mb="sm">
+              <Title order={4}>Map Type</Title>
+            </Group>
+            <Select
+              data={mapTypeOptions}
+              value={currentMapType}
+              onChange={(value) => {
+                if (value) {
+                  dispatch(setMapType(value as MapType));
+                }
+              }}
+              mt="md"
+              size="sm"
+            />
+          </Paper>
         </AppShell.Navbar>
 
         <AppShell.Main>
