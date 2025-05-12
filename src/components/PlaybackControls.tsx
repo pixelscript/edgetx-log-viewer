@@ -30,7 +30,7 @@ const PlaybackControls: React.FC = () => {
   const [progress, setPlaybackProgress] = useState(0);
   const { setPlaybackProgress: setGlobalPlaybackProgress, followPlane, setFollowPlane, selectedModel, setSelectedModel } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [multiplier, setMultiplier] = useState(1);
+  const [multiplier, setMultiplier] = useState(10);
   const selectedLogData = useSelector((state: RootState) =>
     state.logs.selectedLogFilename ? state.logs.loadedLogs[state.logs.selectedLogFilename] : null
     , isEqual);
@@ -58,7 +58,6 @@ const PlaybackControls: React.FC = () => {
         return;
       }
       const intValLength = Math.max(selectedLogData?.entries[progress].timeDelta as number, 1) / multiplier;
-      console.log('Interval length:', intValLength);
       intervalRef.current = setTimeout(() => {
         setPlaybackProgress(prevProgress => Math.min(prevProgress + 1, duration));
         setGlobalPlaybackProgress(progress);
@@ -88,7 +87,7 @@ const PlaybackControls: React.FC = () => {
         <Select
           size="xs"
           data={speedOptions}
-          defaultValue="1"
+          defaultValue="10"
           onChange={(value) => {
             if (value) {
               setMultiplier(parseInt(value));
