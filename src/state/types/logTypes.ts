@@ -25,8 +25,10 @@ export type LoadedLog = {
   logTime: string | null;
 };
 
+export type LoadedLogs = Record<string, LoadedLog>;
+
 export type LogsState = {
-  loadedLogs: Record<string, LoadedLog>;
+  loadedLogs: LoadedLogs;
   selectedLogFilename: string | null;
   selectedField: string | null;
   targetCenter: XYZ | null;
