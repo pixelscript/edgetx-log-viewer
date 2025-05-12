@@ -1,5 +1,5 @@
 import { LogEntry, GPS, FlightStats, LogValue} from '../state/types';
-
+import { EARTH_RADIUS } from '../consts';
 /**
  * Calculates the Haversine distance between two points on the Earth.
  * @param gps1 First GPS coordinate { lat, long }
@@ -7,7 +7,7 @@ import { LogEntry, GPS, FlightStats, LogValue} from '../state/types';
  * @returns Distance in kilometers.
  */
 function calculateHaversineDistance(gps1: GPS, gps2: GPS): number {
-  const R = 6371; // Radius of the Earth in km
+  const R = EARTH_RADIUS/1000;
   const dLat = (gps2.lat - gps1.lat) * Math.PI / 180;
   const dLon = (gps2.long - gps1.long) * Math.PI / 180;
   const lat1Rad = gps1.lat * Math.PI / 180;
@@ -26,6 +26,7 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
     return {
       maxDistanceKm: null,
       maxAltitudeM: null,
+      minAltitudeM: null,
       flightDurationMinutes: null,
       mostUsedMode: null,
     };
@@ -33,6 +34,7 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
 
   let maxDistanceKm: number | null = null;
   let maxAltitudeM: number | null = null;
+  let minAltitudeM: number | null = null;
   let firstTimestampMs: number | null = null;
   let lastTimestampMs: number | null = null;
   const modeCounts: { [mode: string]: number } = {};
@@ -96,6 +98,9 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
       if (maxAltitudeM === null || altitudeValue > maxAltitudeM) {
         maxAltitudeM = altitudeValue;
       }
+      if (minAltitudeM === null || altitudeValue < minAltitudeM) {
+        minAltitudeM = altitudeValue;
+      }
     }
 
     const currentTimestampMs = parseTimeToMs(entry);
@@ -137,6 +142,7 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
   return {
     maxDistanceKm: maxDistanceKm !== null ? parseFloat(maxDistanceKm.toFixed(2)) : null,
     maxAltitudeM: maxAltitudeM !== null ? parseFloat(maxAltitudeM.toFixed(1)) : null,
+    minAltitudeM: minAltitudeM !== null ? parseFloat(minAltitudeM.toFixed(1)) : null,
     flightDurationMinutes: flightDurationMinutes !== null ? parseFloat(flightDurationMinutes.toFixed(1)) : null,
     mostUsedMode,
   };

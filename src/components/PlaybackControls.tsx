@@ -1,30 +1,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Slider, Button, Group, Box, Select } from '@mantine/core';
+import { Slider, Button, Group, Box, Select, Checkbox } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause } from '@tabler/icons-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import { isEqual } from 'lodash';
 import { usePlayback } from '../contexts/PlaybackContext';
-const speedOptions = [
-  { value: '1', label: '1x' },
-  { value: '2', label: '2x' },
-  { value: '3', label: '3x' },
-  { value: '4', label: '4x' },
-  { value: '5', label: '5x' },
-  { value: '10', label: '10x' },
-  { value: '20', label: '20x' },
-  { value: '30', label: '30x' },
-  { value: '40', label: '40x' },
-  { value: '50', label: '50x' },
-  { value: '100', label: '100x' },
-  { value: '200', label: '200x' },
-  { value: '300', label: '300x' },
-  { value: '400', label: '400x' },
-  { value: '500', label: '500x' },
-]
+
+  const speedOptions = [
+    { value: '1', label: '1x' },
+    { value: '2', label: '2x' },
+    { value: '3', label: '3x' },
+    { value: '4', label: '4x' },
+    { value: '5', label: '5x' },
+    { value: '10', label: '10x' },
+    { value: '20', label: '20x' },
+    { value: '30', label: '30x' },
+    { value: '50', label: '50x' },
+    { value: '100', label: '100x' },
+  ]
+
+  const modelOptions = [
+    { value: 'Small_Airplane', label: 'Airplane' },
+    { value: 'Jet', label: 'Jet' },
+    { value: 'Drone', label: 'Drone' },
+  ];
+
 const PlaybackControls: React.FC = () => {
   const [ progress, setPlaybackProgress ] = useState(0);
-  const { setPlaybackProgress: setGlobalPlaybackProgress } = usePlayback();
+  const { setPlaybackProgress: setGlobalPlaybackProgress, followPlane, setFollowPlane, selectedModel, setSelectedModel } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
   const [multiplier, setMultiplier] = useState(1);
   const selectedLogData = useSelector((state: RootState) =>
@@ -76,7 +79,6 @@ const PlaybackControls: React.FC = () => {
     setIsPlaying(false);
   }, [selectedLogData, setPlaybackProgress]);
 
-
   return (
     <Box p="md">
       <Group>
@@ -101,6 +103,24 @@ const PlaybackControls: React.FC = () => {
           step={1}
           label={(value) => `${Math.round((value / duration) * 100)}%`}
           style={{ flex: 1 }}
+          disabled={!selectedLogData}
+        />
+        <Checkbox
+          label="Follow Plane"
+          checked={followPlane}
+          onChange={(event) => setFollowPlane(event.currentTarget.checked)}
+          disabled={!selectedLogData}
+          size="xs"
+        />
+        <Select
+          size="xs"
+          data={modelOptions}
+          value={selectedModel}
+          onChange={(value) => {
+            if (value) {
+              setSelectedModel(value);
+            }
+          }}
           disabled={!selectedLogData}
         />
       </Group>

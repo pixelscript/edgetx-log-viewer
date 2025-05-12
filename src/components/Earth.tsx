@@ -6,6 +6,7 @@ import { Lights } from './Lights';
 import { CameraController } from './CameraController';
 import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
+import Slippy from './Slippy';
 const EarthScene = ({
   textureUrl,
 }: {
@@ -15,12 +16,14 @@ const EarthScene = ({
   const isPlaybackMode = viewMode === 'playback';
   return (
     <Canvas camera={{ fov: 75, near: 0.1, far: 1e9 }} gl={{ logarithmicDepthBuffer: true, antialias: true }}>
-      <color attach="background" args={[0x000000]} />
-      <Lights />
-      <EarthSphere textureUrl={textureUrl} />
-      {!isPlaybackMode && <PathLines />}
-      {isPlaybackMode && <PlaybackPathLine />}
-      <CameraController />
+      <CameraController>
+        <color attach="background" args={[0x000000]} />
+        <Lights />
+        <Slippy />
+        <EarthSphere textureUrl={textureUrl} />
+        {!isPlaybackMode && <PathLines />}
+        {isPlaybackMode && <PlaybackPathLine />}
+      </CameraController>
     </Canvas>
   );
 };

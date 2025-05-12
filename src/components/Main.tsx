@@ -1,9 +1,10 @@
 import "@mantine/core/styles.css";
-import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs } from "@mantine/core";
+import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select, Paper } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
-import { setViewMode, ViewMode } from "../state/uiSlice";
+import { setViewMode, ViewMode, selectMapType, setMapType } from "../state/uiSlice";
+import { MapType } from "../consts/earth";
 import LogFileUploader from "./LogFileUploader";
 import LogSelectorTable from "./LogSelectorTable";
 import EarthViewer from "./EarthViewer";
@@ -20,6 +21,9 @@ export default function Main() {
   const [exportModalOpened, { open: openExportModal, close: closeExportModal }] = useDisclosure(false);
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const dispatch = useDispatch();
+  const currentMapType = useSelector(selectMapType);
+
+  const mapTypeOptions = Object.values(MapType).map(type => ({ value: type, label: type }));
 
   const handleTabChange = (value: string | null) => {
     if (value) {
@@ -62,6 +66,22 @@ export default function Main() {
         <AppShell.Navbar p="md">
           <LogSelectorTable />
           <LogFileUploader />
+          <Paper withBorder shadow="sm" p="sm" mt="md">
+            <Group justify="space-between" mb="sm">
+              <Title order={4}>Map Type</Title>
+            </Group>
+            <Select
+              data={mapTypeOptions}
+              value={currentMapType}
+              onChange={(value) => {
+                if (value) {
+                  dispatch(setMapType(value as MapType));
+                }
+              }}
+              mt="md"
+              size="sm"
+            />
+          </Paper>
         </AppShell.Navbar>
 
         <AppShell.Main>

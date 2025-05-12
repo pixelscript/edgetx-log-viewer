@@ -70,3 +70,8 @@ yarn preview
 ## License
 
 [MIT License](./LICENSE)
+
+### Assets not covered by same licence
+- Small Airplane by Vojtěch Balák [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/7cvx6ex-xfL)
+- Jet by jeremy [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/6fyLMORhgGK)
+- Drone by NateGazzard [CC-BY](https://creativecommons.org/licenses/by/3.0/) via [Poly Pizza](https://poly.pizza/m/DNbUoMtG3H)
