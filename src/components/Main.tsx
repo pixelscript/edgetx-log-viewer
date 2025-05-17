@@ -42,9 +42,9 @@ export default function Main() {
           <Group h="100%" px="md">
             <Burger opened={navbarOpened} onClick={toggleNavbar} hiddenFrom="sm" size="sm" />
             <img src="./logo.png" alt="A blue squiggle with and orange triangle at the end" style={{ height: 40 }} />
-            <Title order={3}>EdgeTX Log Viewer [BETA]</Title>
+            <Title order={3} visibleFrom="xs">EdgeTX Log Viewer [BETA]</Title>
             {selectedLogFilename && (
-              <Text size="sm" c="dimmed" ml="md"> - {selectedLogFilename}</Text>
+              <Text size="sm" c="dimmed" ml="md" visibleFrom="xs"> - {selectedLogFilename}</Text>
             )}
             <Group justify="flex-end" style={{ flex: 1 }}>
               <ThemeToggle />
