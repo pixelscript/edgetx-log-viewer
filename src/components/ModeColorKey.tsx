@@ -5,15 +5,31 @@ import { RootState } from '../state/store';
 import { logValueTitles, LogValueInfo } from '../consts/logValueTitles';
 import { setSelectedField } from '../state/logsSlice';
 import { isEqual } from 'lodash';
+
+export const MODE_COLOURS = {
+  OK: 'green',
+  CRUZ: 'orange',
+  RTH: 'pink',
+  HOR: 'cyan',
+  HOLD: 'magenta',
+  ANGL: 'greenyellow',
+  MANU: 'dodgerblue',
+  '!ERR': 'red',
+  AIR: '#822EFF',
+  UNKNOWN: 'white',
+};
+
 const modeColorsData = [
-  { mode: 'OK', color: 'green' },
-  { mode: 'CRUZ', color: 'orange' },
-  { mode: 'RTH', color: 'red' },
-  { mode: 'HOR', color: 'cyan' },
-  { mode: 'HOLD', color: 'magenta' },
-  { mode: 'ANGL', color: 'greenyellow' },
-  { mode: 'MANU', color: 'dodgerblue' },
-  { mode: 'AIR', color: '#822EFF' },
+  { mode: 'OK', color: MODE_COLOURS.OK },
+  { mode: 'CRUZ', color: MODE_COLOURS.CRUZ },
+  { mode: 'RTH', color: MODE_COLOURS.RTH },
+  { mode: 'HOR', color: MODE_COLOURS.HOR },
+  { mode: 'HOLD', color: MODE_COLOURS.HOLD },
+  { mode: 'ANGL', color: MODE_COLOURS.ANGL },
+  { mode: 'MANU', color: MODE_COLOURS.MANU },
+  { mode: '!ERR', color: MODE_COLOURS['!ERR'] },
+  { mode: 'AIR', color: MODE_COLOURS.AIR },
+  { mode: 'UNKNOWN', color: MODE_COLOURS.UNKNOWN },
 ];
 
 const formatValue = (value: number | null): string => {

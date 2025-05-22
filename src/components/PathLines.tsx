@@ -9,18 +9,18 @@ import { isEqual } from 'lodash';
 import { ColoredPathLine } from './ColoredPathLine';
 import ValueColoredPath from './ValueColoredPath';
 
+import { MODE_COLOURS } from './ModeColorKey';
+
 const getModeColor = (mode: string): THREE.ColorRepresentation => {
-  switch (mode) {
-    case 'OK': return 'green';
-    case 'CRUZ': return 'orange';
-    case 'RTH': return 'red';
-    case 'HOR': return 'cyan';
-    case 'HOLD': return 'magenta';
-    case 'ANGL': return 'greenyellow';
-    case 'MANU': return 'dodgerblue';
-    case 'AIR': return '#822EFF';
-    default: return 'white';
+  console.log(`Mode: ${mode}`);
+  const color = MODE_COLOURS[mode as keyof typeof MODE_COLOURS];
+  if (color) {
+    return color;
+  } else {
+    console.warn(`No color found for mode: ${mode}`);
+    return MODE_COLOURS.UNKNOWN;
   }
+
 };
 
 const groupEntriesByMode = (logEntries: LogEntry[], altOffset: number = 0): { mode: string; path: Path }[] => {
