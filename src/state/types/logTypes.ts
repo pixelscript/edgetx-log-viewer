@@ -32,12 +32,13 @@ export type LogsState = {
   selectedLogFilename: string | null;
   selectedField: string | null;
   targetCenter: XYZ | null;
+  liveLogFilename: string | null;
 };
 
 export type FlightStats = {
-  maxDistanceKm: number | null;
-  maxAltitudeM: number | null;
-  minAltitudeM: number | null;
-  flightDurationMinutes: number | null;
-  mostUsedMode: string | null;
+  maxDistanceKm: number;
+  maxAltitudeM: number;
+  minAltitudeM: number;
+  flightDurationMinutes: number;
+  mostUsedMode: string;
 };

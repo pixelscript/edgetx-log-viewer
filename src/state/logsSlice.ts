@@ -1,20 +1,21 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { LogEntry, LogsState } from './types/logTypes';
 import { calculateFlightStats } from '../utils/statsUtils';
+import { format } from 'date-fns';
 
-  const parseTimeToMs = (entry: LogEntry): number => {
-    const dateStr = entry.date;
-    const timeStr = entry.time;
+const parseTimeToMs = (entry: LogEntry): number => {
+  const dateStr = entry.date;
+  const timeStr = entry.time;
 
-    if (typeof dateStr === 'string' && typeof timeStr === 'string') {
-      const dateTimeString = `${dateStr}T${timeStr}Z`;
-      const date = new Date(dateTimeString);
-      if (!isNaN(date.getTime())) {
-        return date.getTime();
-      }
+  if (typeof dateStr === 'string' && typeof timeStr === 'string') {
+    const dateTimeString = `${dateStr}T${timeStr}Z`;
+    const date = new Date(dateTimeString);
+    if (!isNaN(date.getTime())) {
+      return date.getTime();
     }
-    return 0;
-  };
+  }
+  return 0;
+};
 
 
 const isNumericalField = (key: string, value: any): boolean => {
@@ -64,7 +65,7 @@ const removeInvalidGPSAndFormat = (entries: LogEntry[]): LogEntry[] => {
 const addTimeDelta = (entries: LogEntry[]): LogEntry[] => {
   if (entries.length === 0) return [];
   const updatedEntries = entries.map((entry, index) => {
-    const timeDelta = (entries[Math.min(index + 1, entries.length-1)].timeMs as number) - (entry.timeMs as number);
+    const timeDelta = (entries[Math.min(index + 1, entries.length - 1)].timeMs as number) - (entry.timeMs as number);
     return {
       ...entry,
       timeDelta
@@ -105,6 +106,7 @@ const initialState: LogsState = {
   selectedLogFilename: null,
   selectedField: null,
   targetCenter: null,
+  liveLogFilename: null,
 };
 
 const logsSlice = createSlice({
@@ -181,8 +183,61 @@ const logsSlice = createSlice({
         }
       }
     },
+    startNewLiveLog: (state, action: PayloadAction<{ craftName: string }>) => {
+      const { craftName } = action.payload;
+      const now = new Date();
+      const datePart = format(now, 'yyyy-MM-dd');
+      const timePart = format(now, 'HHmmss');
+      const filename = `${craftName}-${datePart}-${timePart}.csv`;
+
+      state.loadedLogs[filename] = {
+        filename,
+        entries: [],
+        numericalFields: [],
+        stats: {
+          flightDurationMinutes: 0,
+          maxAltitudeM: 0,
+          maxDistanceKm: 0,
+          minAltitudeM: 0,
+          mostUsedMode: '',
+        },
+        modelName: craftName,
+        logDate: datePart,
+        logTime: timePart,
+      };
+      state.selectedLogFilename = filename;
+      state.liveLogFilename = filename;
+    },
+    addLiveLogEntry: (state, action: PayloadAction<{ newData: LogEntry }>) => {
+      const { newData } = action.payload;
+      if (state.liveLogFilename && state.loadedLogs[state.liveLogFilename]) {
+        const currentLog = state.loadedLogs[state.liveLogFilename];
+        const lastEntry = currentLog.entries.length > 0 ? currentLog.entries[currentLog.entries.length - 1] : {};
+        const mergedEntry = { ...lastEntry, ...newData };
+        // if (!mergedEntry.gps) {
+        //   return;
+        // }
+
+        if (mergedEntry.time && typeof mergedEntry.time === 'string') {
+          mergedEntry.timeMs = parseTimeToMs(mergedEntry);
+        }
+
+        currentLog.entries.push(mergedEntry);
+        if (currentLog.numericalFields.length === 0) {
+          currentLog.numericalFields = Object.keys(mergedEntry).filter(key =>
+            isNumericalField(key, mergedEntry[key])
+          );
+        } else {
+          Object.keys(mergedEntry).forEach(key => {
+            if (!currentLog.numericalFields.includes(key) && isNumericalField(key, mergedEntry[key])) {
+              currentLog.numericalFields.push(key);
+            }
+          });
+        }
+      }
+    },
   },
 });
 
-export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter } = logsSlice.actions;
+export const { addLog, setSelectedLog, clearLogs, setSelectedField, removeLog, setTargetCenter, startNewLiveLog, addLiveLogEntry } = logsSlice.actions;
 export default logsSlice.reducer;

@@ -13,7 +13,7 @@ const EarthScene = ({
   textureUrl?: string;
 }) => {
   const viewMode = useSelector((state: RootState) => state.ui.viewMode);
-  const isPlaybackMode = viewMode === 'playback';
+  const isPlaybackMode = (viewMode === 'playback' || viewMode === 'live');
   return (
     <Canvas camera={{ fov: 75, near: 0.1, far: 1e9 }} gl={{ logarithmicDepthBuffer: true, antialias: true }}>
       <CameraController>

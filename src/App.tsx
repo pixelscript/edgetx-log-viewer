@@ -1,5 +1,6 @@
 import "@mantine/core/styles.css";
 import '@mantine/dropzone/styles.css';
+import '@mantine/notifications/styles.css';
 import "./global.css";
 import { MantineProvider, ColorSchemeScript } from "@mantine/core";
 import { Provider } from "react-redux";
@@ -8,7 +9,7 @@ import { theme } from "./theme";
 import Main from "./components/Main";
 import ErrorModal from "./components/ErrorModal";
 import { PlaybackProvider } from "./contexts/PlaybackContext";
-
+import { Notifications } from '@mantine/notifications';
 export default function App() {
 
   return (
@@ -16,6 +17,7 @@ export default function App() {
       <ColorSchemeScript defaultColorScheme="auto" />
       <MantineProvider theme={theme} defaultColorScheme="auto">
         <Provider store={store}>
+          <Notifications />
           <PlaybackProvider>
             <Main />
           </PlaybackProvider>

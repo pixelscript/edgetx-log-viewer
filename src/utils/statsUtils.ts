@@ -93,10 +93,14 @@ export function calculateFlightStats(logEntries: LogEntry[]): FlightStats {
   }
 
   return {
-    maxDistanceKm: maxDistanceKm !== null ? parseFloat(maxDistanceKm.toFixed(2)) : null,
-    maxAltitudeM: maxAltitudeM !== null ? parseFloat(maxAltitudeM.toFixed(1)) : null,
-    minAltitudeM: minAltitudeM !== null ? parseFloat(minAltitudeM.toFixed(1)) : null,
-    flightDurationMinutes: flightDurationMinutes !== null ? parseFloat(flightDurationMinutes.toFixed(1)) : null,
+    maxDistanceKm: isValidNum(maxDistanceKm) ? parseFloat(maxDistanceKm.toFixed(2)) : null,
+    maxAltitudeM: isValidNum(maxAltitudeM) ? parseFloat(maxAltitudeM.toFixed(1)) : null,
+    minAltitudeM: isValidNum(minAltitudeM) ? parseFloat(minAltitudeM.toFixed(1)) : null,
+    flightDurationMinutes: isValidNum(flightDurationMinutes) ? parseFloat(flightDurationMinutes.toFixed(1)) : null,
     mostUsedMode,
   };
+}
+
+function isValidNum(value: unknown) {
+  return value !== null && !isNaN(value) && value > 0;
 }

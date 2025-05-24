@@ -10,6 +10,7 @@ import LogSelectorTable from "./LogSelectorTable";
 import EarthViewer from "./EarthViewer";
 import ModeColorKey from "./ModeColorKey";
 import PlaybackControls from "./PlaybackControls";
+import LiveControls from "./LiveControls";
 import FlightStatsDisplay from "./FlightStatsDisplay";
 import { IconDownload } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
@@ -90,6 +91,7 @@ export default function Main() {
               <Tabs.List>
                 <Tabs.Tab value="stats">Stats</Tabs.Tab>
                 <Tabs.Tab value="playback">Playback</Tabs.Tab>
+                <Tabs.Tab value="live">Live</Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="stats" pt="xs" pb="md">
@@ -102,6 +104,12 @@ export default function Main() {
               <Tabs.Panel value="playback" pt="xs" pb="md">
                 <Stack style={{ flex: 1, marginTop: 'md' }}>
                   <PlaybackControls />
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="live" pt="xs" pb="md">
+                <Stack style={{ flex: 1, marginTop: 'md' }}>
+                  <LiveControls />
                 </Stack>
               </Tabs.Panel>
             </Tabs>

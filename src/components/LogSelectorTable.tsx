@@ -111,9 +111,9 @@ const LogSelectorTable: React.FC = () => {
         >
           <Table.Td>{log.modelName || 'N/A'}</Table.Td>
           <Table.Td>{log.logDate || 'N/A'}</Table.Td>
-          <Table.Td>{stats.flightDurationMinutes !== null ? stats.flightDurationMinutes.toFixed(1) : 'N/A'}</Table.Td>
-          <Table.Td>{stats.maxAltitudeM !== null ? stats.maxAltitudeM.toFixed(1) : 'N/A'}</Table.Td>
-          <Table.Td>{stats.maxDistanceKm !== null ? stats.maxDistanceKm.toFixed(2) : 'N/A'}</Table.Td>
+          <Table.Td>{stats.flightDurationMinutes !== null ? stats.flightDurationMinutes : 'N/A'}</Table.Td>
+          <Table.Td>{stats.maxAltitudeM !== null ? stats.maxAltitudeM : 'N/A'}</Table.Td>
+          <Table.Td>{stats.maxDistanceKm !== null ? stats.maxDistanceKm : 'N/A'}</Table.Td>
         </Table.Tr>
     );
   });
