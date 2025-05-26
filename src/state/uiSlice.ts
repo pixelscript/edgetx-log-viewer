@@ -3,6 +3,7 @@ import { RootState } from './store';
 import { MapType } from '../consts/earth';
 
 export type ViewMode = 'stats' | 'playback' | 'live';
+export type LiveState = 'disconnected' | 'connecting' | 'connected' | 'waiting' | 'logging';
 
 interface ErrorStatus {
   message: string | null;
@@ -13,7 +14,7 @@ interface UiState {
   viewMode: ViewMode;
   errorStatus: ErrorStatus;
   mapType: MapType;
-  liveConnected: boolean;
+  liveState: LiveState;
 }
 
 const initialState: UiState = {
@@ -23,7 +24,7 @@ const initialState: UiState = {
     isModalVisible: false,
   },
   mapType: MapType.BingMapHybrid,
-  liveConnected: false,
+  liveState: 'disconnected',
 };
 
 const uiSlice = createSlice({
@@ -46,19 +47,19 @@ const uiSlice = createSlice({
     hideErrorModal: (state) => {
       state.errorStatus.isModalVisible = false;
     },
-    setLiveConnected: (state, action: PayloadAction<boolean>) => {
-      state.liveConnected = action.payload;
+    setLiveState: (state, action: PayloadAction<LiveState>) => {
+      state.liveState = action.payload;
     },
   },
 });
 
-export const { setViewMode, setMapType, setErrorStatus, showErrorModal, hideErrorModal, setLiveConnected } = uiSlice.actions;
+export const { setViewMode, setMapType, setErrorStatus, showErrorModal, hideErrorModal, setLiveState } = uiSlice.actions;
 
 export const selectViewMode = (state: RootState) => state.ui.viewMode;
 export const selectMapType = (state: RootState) => state.ui.mapType;
 export const selectErrorStatus = (state: RootState) => state.ui.errorStatus;
 export const selectErrorMessage = (state: RootState) => state.ui.errorStatus.message;
 export const selectIsErrorModalVisible = (state: RootState) => state.ui.errorStatus.isModalVisible;
-export const selectLiveConnected = (state: RootState) => state.ui.liveConnected;
+export const selectLiveState = (state: RootState) => state.ui.liveState;
 
 export default uiSlice.reducer;

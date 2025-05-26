@@ -64,7 +64,9 @@ const PlaybackPathLine: React.FC = () => {
 
 
   const linePoints = useMemo(() => {
-    return currentFlightSegment.map(p => p.position);
+    const pointsCopy = [...currentFlightSegment];
+    let cutdownPoints = pointsCopy.splice(currentFlightSegment.length-100)
+    return cutdownPoints.map(p => p.position);
   }, [currentFlightSegment]);
 
   const currentPlaneData = useMemo(() => {
