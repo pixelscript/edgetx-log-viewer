@@ -42,6 +42,7 @@ const PlaybackControls: React.FC = () => {
     , isEqual);
   const duration = selectedLogData?.entries.length ? selectedLogData.entries.length - 1 : 100;
   const intervalRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expectedNextExecutionTimeRef = React.useRef<number>(performance.now());
 
   const handlePlayPause = useCallback(() => {
     setIsPlaying((prev) => !prev);
@@ -63,7 +64,13 @@ const PlaybackControls: React.FC = () => {
         setGlobalPlaybackProgress(duration);
         return;
       }
-      const intValLength = Math.max(selectedLogData?.entries[progress].timeDelta as number, 1) / multiplier;
+      const currentTime = performance.now();
+      let timeDelta = selectedLogData?.entries[progress].timeDelta as number;
+      const actualElapsed = currentTime - expectedNextExecutionTimeRef.current;
+      let intValLength = Math.max(1, timeDelta - actualElapsed);
+      intValLength = intValLength / multiplier;
+      expectedNextExecutionTimeRef.current = currentTime + intValLength;
+
       intervalRef.current = setTimeout(() => {
         setPlaybackProgress(prevProgress => Math.min(prevProgress + 1, duration));
         setGlobalPlaybackProgress(progress);
@@ -73,13 +80,14 @@ const PlaybackControls: React.FC = () => {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      expectedNextExecutionTimeRef.current = performance.now();
     }
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, progress, duration, setPlaybackProgress, multiplier]);
+  }, [isPlaying, progress, duration, setPlaybackProgress, multiplier, selectedLogData, setGlobalPlaybackProgress]);
 
   useEffect(() => {
     setPlaybackProgress(0);
