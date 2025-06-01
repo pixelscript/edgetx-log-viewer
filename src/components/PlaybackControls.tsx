@@ -7,13 +7,9 @@ import { isEqual } from 'lodash';
 import { usePlayback } from '../contexts/PlaybackContext';
 
 const speedOptions = [
+  { value: '0.5', label: '0.5x' },
   { value: '1', label: '1x' },
-  { value: '1.1', label: '1.1x' },
-  { value: '1.15', label: '1.15x' },
-  { value: '1.2', label: '1.2x' },
-  { value: '1.25', label: '1.25x' },
   { value: '1.5', label: '1.5x' },
-  { value: '1.75', label: '1.75x' },
   { value: '2', label: '2x' },
   { value: '3', label: '3x' },
   { value: '4', label: '4x' },
@@ -42,6 +38,7 @@ const PlaybackControls: React.FC = () => {
     , isEqual);
   const duration = selectedLogData?.entries.length ? selectedLogData.entries.length - 1 : 100;
   const intervalRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expectedNextExecutionTimeRef = React.useRef<number>(performance.now());
 
   const handlePlayPause = useCallback(() => {
     setIsPlaying((prev) => !prev);
@@ -63,7 +60,13 @@ const PlaybackControls: React.FC = () => {
         setGlobalPlaybackProgress(duration);
         return;
       }
-      const intValLength = Math.max(selectedLogData?.entries[progress].timeDelta as number, 1) / multiplier;
+      const currentTime = performance.now();
+      let timeDelta = selectedLogData?.entries[progress].timeDelta as number;
+      const actualElapsed = currentTime - expectedNextExecutionTimeRef.current;
+      let intValLength = Math.max(1, timeDelta - actualElapsed);
+      intValLength = intValLength / multiplier;
+      expectedNextExecutionTimeRef.current = currentTime + intValLength;
+
       intervalRef.current = setTimeout(() => {
         setPlaybackProgress(prevProgress => Math.min(prevProgress + 1, duration));
         setGlobalPlaybackProgress(progress);
@@ -73,13 +76,14 @@ const PlaybackControls: React.FC = () => {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      expectedNextExecutionTimeRef.current = performance.now();
     }
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, progress, duration, setPlaybackProgress, multiplier]);
+  }, [isPlaying, progress, duration, setPlaybackProgress, multiplier, selectedLogData, setGlobalPlaybackProgress]);
 
   useEffect(() => {
     setPlaybackProgress(0);
