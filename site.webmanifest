@@ -1,6 +1,7 @@
 {
-  "name": "",
-  "short_name": "",
+  "name": "EdgeTX Log Viewer",
+  "short_name": "Log Viewer",
+  "description": "A 3D viewer for EdgeTX flight logs.",
   "icons": [
     {
       "src": "./android-chrome-192x192.png",
@@ -13,6 +14,7 @@
       "type": "image/png"
     }
   ],
+  "start_url": ".",
   "theme_color": "#ffffff",
   "background_color": "#ffffff",
   "display": "standalone"

@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/edgetx-log-viewer/sw.js', { scope: '/edgetx-log-viewer/' })})}
