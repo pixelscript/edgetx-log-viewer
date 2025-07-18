@@ -15,7 +15,6 @@ import { IconDownload, IconBrandGithub } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
 import ExportModal from './ExportModal';
 import { ThemeToggle } from './ThemeToggle';
-import { theme } from "../theme";
 
 export default function Main() {
   const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
