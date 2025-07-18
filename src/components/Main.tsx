@@ -1,5 +1,5 @@
 import "@mantine/core/styles.css";
-import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select, Paper } from "@mantine/core";
+import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select, Paper, ActionIcon, Pill } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
@@ -11,10 +11,11 @@ import EarthViewer from "./EarthViewer";
 import ModeColorKey from "./ModeColorKey";
 import PlaybackControls from "./PlaybackControls";
 import FlightStatsDisplay from "./FlightStatsDisplay";
-import { IconDownload } from '@tabler/icons-react';
+import { IconDownload, IconBrandGithub } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
 import ExportModal from './ExportModal';
 import { ThemeToggle } from './ThemeToggle';
+import { theme } from "../theme";
 
 export default function Main() {
   const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
@@ -42,21 +43,43 @@ export default function Main() {
           <Group h="100%" px="md">
             <Burger opened={navbarOpened} onClick={toggleNavbar} hiddenFrom="sm" size="sm" />
             <img src="./logo.png" alt="A blue squiggle with and orange triangle at the end" style={{ height: 40 }} />
-            <Title order={3} visibleFrom="xs">EdgeTX Log Viewer [BETA]</Title>
+            <Title order={3} visibleFrom="md">EdgeTX Log Viewer</Title>
+            <Title order={3} hiddenFrom="md">Log Viewer</Title>
+            <Pill size="xs" color="red" style={{ backgroundColor: '#e94848c5', marginLeft: '-5px' }}>
+              BETA
+            </Pill>
             {selectedLogFilename && (
-              <Text size="sm" c="dimmed" ml="md" visibleFrom="xs"> - {selectedLogFilename}</Text>
+              <Text size="sm" c="dimmed" ml="md" visibleFrom="md"> - {selectedLogFilename}</Text>
             )}
             <Group justify="flex-end" style={{ flex: 1 }}>
+              <ActionIcon
+                variant="default"
+                size="lg"
+                aria-label="Visit GitHub repository"
+                onClick={() => window.open("https://github.com/pixelscript/edgetx-log-viewer", "_blank")}
+                visibleFrom="lg"
+              >
+                <IconBrandGithub size={20} />
+              </ActionIcon>
               <ThemeToggle />
               {selectedLogFilename && (
-                <Button
-                  variant="light"
-                  leftSection={<IconDownload size={14} />}
-                  onClick={openExportModal}
-                  ml="xs"
-                >
-                  Export Log
-                </Button>
+                <>
+                  <Button
+                    variant="light"
+                    leftSection={<IconDownload size={14} />}
+                    onClick={openExportModal}
+                    visibleFrom="md"
+                  >
+                    Export Log
+                  </Button>
+                  <Button
+                    variant="light"
+                    onClick={openExportModal}
+                    hiddenFrom="md"
+                  >
+                    <IconDownload size={14} />
+                  </Button>
+                </>
               )}
             </Group>
 
