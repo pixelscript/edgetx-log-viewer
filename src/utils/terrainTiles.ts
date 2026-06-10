@@ -103,6 +103,18 @@ export function listTiles(range: TileRange): TileCoord[] {
   return tiles;
 }
 
+/** Lists every tile covering the whole world at the given zoom level. */
+export function listWorldTiles(z: number): TileCoord[] {
+  const count = 2 ** z;
+  const tiles: TileCoord[] = [];
+  for (let x = 0; x < count; x++) {
+    for (let y = 0; y < count; y++) {
+      tiles.push({ x, y });
+    }
+  }
+  return tiles;
+}
+
 /**
  * A decoded elevation tile: a square grid of metre elevations sampled from a
  * Terrarium PNG.
