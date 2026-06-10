@@ -1,9 +1,9 @@
 import "@mantine/core/styles.css";
-import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select, Paper, ActionIcon, Pill } from "@mantine/core";
+import { AppShell, Burger, Group, Text, Stack, Title, Button, Tabs, Select, Paper, ActionIcon, Pill, Switch } from "@mantine/core";
 import { useDisclosure } from '@mantine/hooks';
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
-import { setViewMode, ViewMode, selectMapType, setMapType } from "../state/uiSlice";
+import { setViewMode, ViewMode, selectMapType, setMapType, selectShowTerrain, setShowTerrain } from "../state/uiSlice";
 import { MapType } from "../consts/earth";
 import LogFileUploader from "./LogFileUploader";
 import LogSelectorTable from "./LogSelectorTable";
@@ -22,6 +22,7 @@ export default function Main() {
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const dispatch = useDispatch();
   const currentMapType = useSelector(selectMapType);
+  const showTerrain = useSelector(selectShowTerrain);
 
   const mapTypeOptions = Object.values(MapType).map(type => ({ value: type, label: type }));
 
@@ -100,6 +101,14 @@ export default function Main() {
                   dispatch(setMapType(value as MapType));
                 }
               }}
+              mt="md"
+              size="sm"
+            />
+            <Switch
+              label="3D Terrain"
+              description="Drapes the map over elevation data around the flight"
+              checked={showTerrain}
+              onChange={(event) => dispatch(setShowTerrain(event.currentTarget.checked))}
               mt="md"
               size="sm"
             />

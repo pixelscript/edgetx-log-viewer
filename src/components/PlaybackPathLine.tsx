@@ -24,6 +24,7 @@ const PlaybackPathLine: React.FC = () => {
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
   const targetCenterFromStore = useSelector((state: RootState) => state.logs.targetCenter);
+  const terrainElevationOffset = useSelector((state: RootState) => state.ui.terrainElevationOffset);
   const { playbackProgress: progress, followPlane, selectedModel } = usePlayback();
   const { controlsRef } = useControlsContext();
   const { camera } = useThree();
@@ -39,7 +40,7 @@ const PlaybackPathLine: React.FC = () => {
   const allFlightDataPoints = useMemo(() => {
     if (!selectedLogFilename) return [];
     const logData = loadedLogs[selectedLogFilename];
-    const altOffset = Math.max(0 - (logData?.stats.minAltitudeM ?? 0), 0);
+    const altOffset = Math.max(0 - (logData?.stats.minAltitudeM ?? 0), 0) + terrainElevationOffset;
     if (!logData || !logData.entries || logData.entries.length === 0) return [];
     const flightPoints = logData.entries
       .map((entry: LogEntry) => {
@@ -54,7 +55,7 @@ const PlaybackPathLine: React.FC = () => {
       })
       .filter(Boolean) as PlanePoint[];
     return flightPoints;
-  }, [selectedLogFilename, loadedLogs]);
+  }, [selectedLogFilename, loadedLogs, terrainElevationOffset]);
 
   const currentFlightSegment = useMemo(() => {
     if (allFlightDataPoints.length === 0) return [];

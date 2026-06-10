@@ -13,6 +13,8 @@ interface UiState {
   viewMode: ViewMode;
   errorStatus: ErrorStatus;
   mapType: MapType;
+  showTerrain: boolean;
+  terrainElevationOffset: number;
 }
 
 const initialState: UiState = {
@@ -22,6 +24,8 @@ const initialState: UiState = {
     isModalVisible: false,
   },
   mapType: MapType.BingMapHybrid,
+  showTerrain: false,
+  terrainElevationOffset: 0,
 };
 
 const uiSlice = createSlice({
@@ -33,6 +37,12 @@ const uiSlice = createSlice({
     },
     setMapType: (state, action: PayloadAction<MapType>) => {
       state.mapType = action.payload;
+    },
+    setShowTerrain: (state, action: PayloadAction<boolean>) => {
+      state.showTerrain = action.payload;
+    },
+    setTerrainElevationOffset: (state, action: PayloadAction<number>) => {
+      state.terrainElevationOffset = action.payload;
     },
     setErrorStatus: (state, action: PayloadAction<Partial<ErrorStatus>>) => {
       state.errorStatus = { ...state.errorStatus, ...action.payload };
@@ -47,10 +57,12 @@ const uiSlice = createSlice({
   },
 });
 
-export const { setViewMode, setMapType, setErrorStatus, showErrorModal, hideErrorModal } = uiSlice.actions;
+export const { setViewMode, setMapType, setShowTerrain, setTerrainElevationOffset, setErrorStatus, showErrorModal, hideErrorModal } = uiSlice.actions;
 
 export const selectViewMode = (state: RootState) => state.ui.viewMode;
 export const selectMapType = (state: RootState) => state.ui.mapType;
+export const selectShowTerrain = (state: RootState) => state.ui.showTerrain;
+export const selectTerrainElevationOffset = (state: RootState) => state.ui.terrainElevationOffset;
 export const selectErrorStatus = (state: RootState) => state.ui.errorStatus;
 export const selectErrorMessage = (state: RootState) => state.ui.errorStatus.message;
 export const selectIsErrorModalVisible = (state: RootState) => state.ui.errorStatus.isModalVisible;
