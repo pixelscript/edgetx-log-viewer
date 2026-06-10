@@ -41,9 +41,9 @@ const TILE_CACHE_BUDGET = 1200;
 const EVICT_INTERVAL_TICKS = 60;
 // Maximum number of new tile loads kicked off per update (frame). New loads are
 // prioritised coarsest-then-nearest, so the most useful tiles arrive first and
-// the rest defer to later frames. A tile only requests its children once it has
-// itself loaded, so loads cascade level by level rather than all at once.
-const MAX_LOADS_PER_UPDATE = 16;
+// the rest defer to later frames. Every level on a path is requested in parallel
+// (not gated on the parent loading first), so this caps the burst when zooming.
+const MAX_LOADS_PER_UPDATE = 24;
 // Deepest zoom the free Terrarium elevation dataset is sampled at. Display
 // tiles beyond this reuse a sub-region of their nearest ancestor elevation tile,
 // so geometry keeps streaming with imagery without extra elevation fetches.
@@ -352,12 +352,13 @@ export class TerrainQuadtree {
    * this subtree is fully covered by loaded geometry, so a parent knows whether
    * it must keep showing itself as a fallback.
    *
-   * No-blank refinement: a node only descends to (and requests) its children
-   * once it has loaded itself, and it keeps its own mesh visible until *all* of
-   * its in-view children have loaded — then it hides and the children take over
-   * in the same frame. So zooming in never drops to a blank or a much coarser
-   * level: the current surface stays put until its sharper replacement is ready.
-   * Combined with the CDLOD vertex morph, the swap is also seamless.
+   * No-blank refinement: every level along the path streams in parallel rather
+   * than one level per round-trip, but a node keeps showing the finest geometry
+   * it has loaded until *all* of its in-view children are ready — then it hides
+   * and the children take over in the same frame. So zooming in never drops to a
+   * blank: the current surface stays put (and sharpens progressively) until its
+   * replacement is ready. Combined with the CDLOD vertex morph, swaps are
+   * seamless.
    *
    * Loading is gated by the (margin-inflated) view frustum and a horizon test so
    * only tiles near the visible near-side of the globe stream in.
@@ -415,9 +416,8 @@ export class TerrainQuadtree {
     }
     node.subdivided = wantSubdivide;
 
-    // Can't descend until this node has loaded (it is the fallback the children
-    // refine over). Draw it at this level for now.
-    if (!wantSubdivide || !node.loaded) {
+    // Leaf for now: nothing finer is wanted here, so just draw this level.
+    if (!wantSubdivide) {
       this.hideChildren(node);
       if (node.mesh) {
         node.mesh.visible = node.loaded && inFrustum;
@@ -425,9 +425,13 @@ export class TerrainQuadtree {
       return node.loaded;
     }
 
-    // Subdividing and loaded: request/refine children. They render only once all
-    // of them are ready, so we never show a half-built finer level over the
-    // coarse fallback (which would z-fight); until then this node stays visible.
+    // Subdividing: descend and stream the children straight away, even if this
+    // node hasn't loaded yet. Every level on the path is requested in parallel
+    // (capped per frame), so the view jumps toward the target resolution instead
+    // of climbing one level per network round-trip. Children render only once
+    // *all* of them are ready, so we never show a half-built finer level over the
+    // coarse fallback (which would z-fight); until then the finest already-loaded
+    // ancestor stays visible.
     this.ensureChildren(node);
     let allCovered = true;
     for (const child of node.children!) {
