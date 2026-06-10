@@ -171,6 +171,82 @@ export async function loadHeightTile(
   return { size, elevations };
 }
 
+// Many display tiles share one elevation tile: everything beyond the dataset's
+// max zoom reuses a sub-region of the same ancestor, so four z14 siblings all
+// want the same z13 PNG (16 at z15, and so on). This cache dedupes those — both
+// completed and in-flight — so each elevation tile is fetched at most once. It
+// is a simple insertion-order LRU bounded by HEIGHT_TILE_CACHE_LIMIT.
+const heightTileCache = new Map<string, Promise<HeightTile | null>>();
+const HEIGHT_TILE_CACHE_LIMIT = 256;
+
+/** Loads a Terrarium elevation tile, deduplicated and cached across callers. */
+export function loadHeightTileCached(
+  x: number,
+  y: number,
+  z: number,
+): Promise<HeightTile | null> {
+  const key = `${z}/${x}/${y}`;
+  const cached = heightTileCache.get(key);
+  if (cached) {
+    // Refresh recency: re-insert so it moves to the most-recent end.
+    heightTileCache.delete(key);
+    heightTileCache.set(key, cached);
+    return cached;
+  }
+
+  const promise = loadHeightTile(x, y, z);
+  heightTileCache.set(key, promise);
+  if (heightTileCache.size > HEIGHT_TILE_CACHE_LIMIT) {
+    const oldest = heightTileCache.keys().next().value;
+    if (oldest !== undefined) {
+      heightTileCache.delete(oldest);
+    }
+  }
+  return promise;
+}
+
+/**
+ * The elevation tile that a display tile should sample its heights from. The
+ * free Terrarium dataset only goes so deep, so display tiles beyond that zoom
+ * share (a sub-region of) their nearest available ancestor elevation tile.
+ */
+export function elevationTileFor(
+  x: number,
+  y: number,
+  z: number,
+  maxZoom: number,
+): { ex: number; ey: number; ez: number } {
+  const ez = Math.min(z, maxZoom);
+  const divisor = 2 ** (z - ez);
+  return { ex: Math.floor(x / divisor), ey: Math.floor(y / divisor), ez };
+}
+
+/**
+ * Samples ground elevation (metres) at a lat/long from a single decoded
+ * elevation tile, clamping to the tile's edges so a display tile never reaches
+ * into a neighbour it has not loaded. Returns 0 when the tile is missing (e.g.
+ * ocean / out of coverage).
+ */
+export function sampleTileElevation(
+  tile: HeightTile | null,
+  ex: number,
+  ey: number,
+  ez: number,
+  latitude: number,
+  longitude: number,
+): number {
+  if (!tile) {
+    return 0;
+  }
+  const lonLeft = tileXToLongitude(ex, ez);
+  const lonRight = tileXToLongitude(ex + 1, ez);
+  const latTop = tileYToLatitude(ey, ez);
+  const latBottom = tileYToLatitude(ey + 1, ez);
+  const u = (longitude - lonLeft) / (lonRight - lonLeft);
+  const v = (latitude - latTop) / (latBottom - latTop);
+  return sampleHeight(tile, u, v);
+}
+
 /** Bilinearly samples an elevation grid at normalised coordinates [0, 1]. */
 export function sampleHeight(tile: HeightTile, u: number, v: number): number {
   const max = tile.size - 1;

@@ -6,22 +6,23 @@ import { RootState } from '../state/store';
 import { selectMapType, setTerrainElevationOffset } from '../state/uiSlice';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import {
+  latitudeToTileY,
   listWorldTiles,
-  loadHeightField,
-  sampleHeightField,
-  selectTileRange,
+  loadHeightTileCached,
+  longitudeToTileX,
+  sampleTileElevation,
 } from '../utils/terrainTiles';
 import { TerrainQuadtree } from '../utils/terrainQuadtree';
 
 // The quadtree is seeded with whole-world root tiles at this zoom so terrain can
 // stream in anywhere the camera goes, refining towards it up to MAX_ZOOM. Only
-// tiles near the camera actually load, so global coverage stays cheap.
+// tiles near the camera actually load, so global coverage stays cheap. Both
+// imagery and elevation now stream per-tile at the quadtree's LOD.
 const ROOT_ZOOM = 3;
-// Elevation is loaded once at a moderate resolution and shared by every LOD, so
-// neighbouring tiles always agree on edge heights (no terrain cracks). Imagery
-// is what streams progressively with distance.
-const ELEVATION_OPTIONS = { minZoom: 9, maxZoom: 13, maxTiles: 24, padTiles: 1 };
 const MAX_ZOOM = 18;
+// Zoom of the elevation tile sampled once at launch to lift the flight path onto
+// the terrain.
+const HOME_ELEVATION_ZOOM = 13;
 
 const getFirstGpsPoint = (entries: LogEntry[]): GPS | null => {
   for (const entry of entries) {
@@ -84,20 +85,27 @@ export default function Terrain() {
     let created: TerrainQuadtree | null = null;
 
     const build = async () => {
-      const elevationRange = selectTileRange(bounds, ELEVATION_OPTIONS);
-      const field = await loadHeightField(elevationRange);
-      if (cancelled) {
-        return;
-      }
-
       if (homePoint) {
-        const elevation = sampleHeightField(field, homePoint.lat, homePoint.long);
+        const ez = HOME_ELEVATION_ZOOM;
+        const ex = longitudeToTileX(homePoint.long, ez);
+        const ey = latitudeToTileY(homePoint.lat, ez);
+        const tile = await loadHeightTileCached(ex, ey, ez);
+        if (cancelled) {
+          return;
+        }
+        const elevation = sampleTileElevation(
+          tile,
+          ex,
+          ey,
+          ez,
+          homePoint.lat,
+          homePoint.long,
+        );
         dispatch(setTerrainElevationOffset(elevation));
       }
 
       created = new TerrainQuadtree({
         mapType,
-        field,
         rootZoom: ROOT_ZOOM,
         rootTiles: listWorldTiles(ROOT_ZOOM),
         maxZoom: MAX_ZOOM,
