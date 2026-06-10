@@ -16,9 +16,12 @@ const TILE_SEGMENTS = 24;
 // Hysteresis band for subdivision: subdivide (stream higher-res children) once
 // the camera is within SUBDIVIDE_IN tile-diagonals, and only collapse back to
 // the coarser tile when it retreats beyond SUBDIVIDE_OUT. The gap between the
-// two thresholds stops tiles flip-flopping between resolutions — and flashing —
-// while the camera hovers near the boundary. Smaller SUBDIVIDE_IN concentrates
-// detail nearer the camera, so far fewer tiles are streamed for a given view.
+// two thresholds stops tiles flip-flopping between resolutions while the camera
+// hovers near the boundary. These same multiples define the CDLOD morph band:
+// a tile is drawn at full detail within SUBDIVIDE_IN diagonals and morphs
+// continuously toward its parent's coarser shape out to SUBDIVIDE_OUT, where it
+// collapses — so its edge already matches the parent before the swap and there
+// is no popping or cracking.
 const SUBDIVIDE_IN = 1.8;
 const SUBDIVIDE_OUT = 2.6;
 // A tile is loaded (and kept resident) when its bounding sphere — inflated by
@@ -38,20 +41,13 @@ const TILE_CACHE_BUDGET = 1200;
 const EVICT_INTERVAL_TICKS = 60;
 // Maximum number of new tile loads kicked off per update (frame). New loads are
 // prioritised coarsest-then-nearest, so the most useful tiles arrive first and
-// the rest defer to later frames. This caps requests-per-second and, combined
-// with only ever loading roots + leaves, keeps the total bounded and convergent.
+// the rest defer to later frames. A tile only requests its children once it has
+// itself loaded, so loads cascade level by level rather than all at once.
 const MAX_LOADS_PER_UPDATE = 16;
 // Deepest zoom the free Terrarium elevation dataset is sampled at. Display
 // tiles beyond this reuse a sub-region of their nearest ancestor elevation tile,
 // so geometry keeps streaming with imagery without extra elevation fetches.
 const ELEVATION_MAX_ZOOM = 13;
-// Each tile drops a short vertical "skirt" around its edges to fill the hairline
-// cracks where neighbouring tiles meet at different elevation LODs. Kept very
-// shallow so it stays tucked behind the surface as a thin filler rather than
-// reading as a dark wall; scales gently with tile size.
-const SKIRT_DEPTH_FRACTION = 0.006;
-const SKIRT_DEPTH_MIN = 3;
-const SKIRT_DEPTH_MAX = 150;
 
 /** The elevation tile (and its coords) a node samples its heights from. */
 interface NodeElevation {
@@ -60,6 +56,9 @@ interface NodeElevation {
   ey: number;
   ez: number;
 }
+
+/** Shared every frame with all terrain materials for CDLOD distance morphing. */
+type CameraUniform = { value: THREE.Vector3 };
 
 const loadTexture = (url: string): Promise<THREE.Texture | null> =>
   new Promise((resolve) => {
@@ -74,14 +73,57 @@ const loadTexture = (url: string): Promise<THREE.Texture | null> =>
     );
   });
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(Math.max(value, min), max);
+/**
+ * Builds a CDLOD-morphing material: a standard PBR terrain material whose
+ * vertices are interpolated, in the vertex shader, between their full-detail
+ * position and a `morphTarget` position lying on the coarser (parent) lattice.
+ * The blend factor rises with camera distance across the tile's morph band, so
+ * a tile smoothly converges to its parent's shape before it is swapped out —
+ * giving a continuous, crack-free, pop-free surface across LOD boundaries.
+ */
+const createTerrainMaterial = (
+  texture: THREE.Texture | null,
+  morphStart: number,
+  morphEnd: number,
+  cameraUniform: CameraUniform,
+): THREE.MeshStandardMaterial => {
+  const material = new THREE.MeshStandardMaterial({
+    map: texture ?? undefined,
+    color: texture ? 0xffffff : 0x808080,
+    roughness: 1,
+    metalness: 0,
+  });
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uCameraPosition = cameraUniform;
+    shader.uniforms.uMorphStart = { value: morphStart };
+    shader.uniforms.uMorphEnd = { value: morphEnd };
+    shader.vertexShader =
+      'attribute vec3 cdlodTarget;\n' +
+      'uniform vec3 uCameraPosition;\n' +
+      'uniform float uMorphStart;\n' +
+      'uniform float uMorphEnd;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        [
+          'float _camDist = distance(position, uCameraPosition);',
+          'float _morph = clamp((_camDist - uMorphStart) / max(uMorphEnd - uMorphStart, 1.0), 0.0, 1.0);',
+          'vec3 transformed = mix(position, cdlodTarget, _morph);',
+        ].join('\n'),
+      );
+  };
+
+  return material;
+};
 
 /**
  * Builds a displaced terrain mesh for a single tile, draped with its imagery
- * and lifted onto elevation streamed for that tile's own LOD. A vertical skirt
- * is added around the edges so seams between tiles at differing elevation
- * resolutions are hidden rather than showing through to the base sphere.
+ * and lifted onto elevation streamed for that tile's own LOD. Alongside each
+ * full-detail vertex it stores a `morphTarget` — the position that vertex would
+ * occupy on the parent's coarser lattice — which the material blends toward with
+ * distance (CDLOD). Because the morph collapses a tile to exactly its parent's
+ * geometry at the LOD-switch distance, neighbouring tiles meet seamlessly and no
+ * skirts are needed.
  */
 const buildTileMesh = (
   x: number,
@@ -89,16 +131,15 @@ const buildTileMesh = (
   z: number,
   elevation: NodeElevation,
   texture: THREE.Texture | null,
+  morphStart: number,
+  morphEnd: number,
+  cameraUniform: CameraUniform,
 ): THREE.Mesh => {
   const verts = TILE_SEGMENTS + 1;
   const { tile, ex, ey, ez } = elevation;
 
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  // Retained per grid vertex so the skirt ring can be dropped from the edges.
-  const gridLat: number[] = [];
-  const gridLong: number[] = [];
-  const gridElev: number[] = [];
+  const positions = new Float32Array(verts * verts * 3);
+  const uvs = new Float32Array(verts * verts * 2);
 
   for (let j = 0; j < verts; j++) {
     const fracY = j / TILE_SEGMENTS;
@@ -109,12 +150,57 @@ const buildTileMesh = (
       const elev = sampleTileElevation(tile, ex, ey, ez, latitude, longitude);
       const point = latLongToCartesian(latitude, longitude, elev);
 
-      positions.push(point.x, point.y, point.z);
+      const vi = (j * verts + i) * 3;
+      positions[vi] = point.x;
+      positions[vi + 1] = point.y;
+      positions[vi + 2] = point.z;
+
+      const ui = (j * verts + i) * 2;
+      uvs[ui] = fracX;
       // Tile row 0 is the northern edge; with flipY textures that maps to v = 1.
-      uvs.push(fracX, 1 - fracY);
-      gridLat.push(latitude);
-      gridLong.push(longitude);
-      gridElev.push(elev);
+      uvs[ui + 1] = 1 - fracY;
+    }
+  }
+
+  // Morph target: collapse odd-indexed vertices onto the even (coarser) lattice
+  // by averaging their even neighbours, exactly mirroring how this tile merges
+  // into its parent. Even vertices keep their own position.
+  const morphTargets = new Float32Array(verts * verts * 3);
+  const copyVertex = (target: number, source: number): void => {
+    morphTargets[target] = positions[source];
+    morphTargets[target + 1] = positions[source + 1];
+    morphTargets[target + 2] = positions[source + 2];
+  };
+  const averageVertices = (target: number, a: number, b: number): void => {
+    morphTargets[target] = (positions[a] + positions[b]) * 0.5;
+    morphTargets[target + 1] = (positions[a + 1] + positions[b + 1]) * 0.5;
+    morphTargets[target + 2] = (positions[a + 2] + positions[b + 2]) * 0.5;
+  };
+  const idx = (i: number, j: number): number => (j * verts + i) * 3;
+
+  for (let j = 0; j < verts; j++) {
+    for (let i = 0; i < verts; i++) {
+      const t = idx(i, j);
+      const iOdd = i % 2 === 1;
+      const jOdd = j % 2 === 1;
+      if (!iOdd && !jOdd) {
+        copyVertex(t, t);
+      } else if (iOdd && !jOdd) {
+        averageVertices(t, idx(i - 1, j), idx(i + 1, j));
+      } else if (!iOdd && jOdd) {
+        averageVertices(t, idx(i, j - 1), idx(i, j + 1));
+      } else {
+        // Both odd: average of the four diagonal even neighbours.
+        const tl = idx(i - 1, j - 1);
+        const tr = idx(i + 1, j - 1);
+        const bl = idx(i - 1, j + 1);
+        const br = idx(i + 1, j + 1);
+        morphTargets[t] = (positions[tl] + positions[tr] + positions[bl] + positions[br]) * 0.25;
+        morphTargets[t + 1] =
+          (positions[tl + 1] + positions[tr + 1] + positions[bl + 1] + positions[br + 1]) * 0.25;
+        morphTargets[t + 2] =
+          (positions[tl + 2] + positions[tr + 2] + positions[bl + 2] + positions[br + 2]) * 0.25;
+      }
     }
   }
 
@@ -129,84 +215,14 @@ const buildTileMesh = (
     }
   }
 
-  // Skirt depth scales gently with the tile's world size (its diagonal).
-  const first = latLongToCartesian(gridLat[0], gridLong[0], gridElev[0]);
-  const lastIndex = verts * verts - 1;
-  const last = latLongToCartesian(
-    gridLat[lastIndex],
-    gridLong[lastIndex],
-    gridElev[lastIndex],
-  );
-  const skirtDepth = clamp(
-    first.distanceTo(last) * SKIRT_DEPTH_FRACTION,
-    SKIRT_DEPTH_MIN,
-    SKIRT_DEPTH_MAX,
-  );
-
-  // Each skirt vertex is paired with the surface vertex it hangs from, so its
-  // normal can later be copied from that vertex. Without this the vertical walls
-  // get sideways normals and shade as dark lines, producing a visible grid.
-  const skirtPairs: Array<[skirt: number, top: number]> = [];
-
-  const addSkirtEdge = (gridIndexAt: (k: number) => number): void => {
-    let prevTop = -1;
-    let prevBottom = -1;
-    for (let k = 0; k < verts; k++) {
-      const gi = gridIndexAt(k);
-      const dropped = latLongToCartesian(
-        gridLat[gi],
-        gridLong[gi],
-        gridElev[gi] - skirtDepth,
-      );
-      const bottom = positions.length / 3;
-      positions.push(dropped.x, dropped.y, dropped.z);
-      uvs.push(uvs[gi * 2], uvs[gi * 2 + 1]);
-      skirtPairs.push([bottom, gi]);
-      if (k > 0) {
-        indices.push(prevTop, prevBottom, gi, gi, prevBottom, bottom);
-      }
-      prevTop = gi;
-      prevBottom = bottom;
-    }
-  };
-
-  addSkirtEdge((k) => k); // North edge (top row).
-  addSkirtEdge((k) => TILE_SEGMENTS * verts + k); // South edge (bottom row).
-  addSkirtEdge((k) => k * verts); // West edge (left column).
-  addSkirtEdge((k) => k * verts + TILE_SEGMENTS); // East edge (right column).
-
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(new Float32Array(positions), 3),
-  );
-  geometry.setAttribute(
-    'uv',
-    new THREE.BufferAttribute(new Float32Array(uvs), 2),
-  );
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('cdlodTarget', new THREE.BufferAttribute(morphTargets, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
 
-  // Make skirts shade like the surface edge they descend from, so they blend in
-  // as crack fillers rather than appearing as dark vertical walls.
-  const normals = geometry.getAttribute('normal') as THREE.BufferAttribute;
-  for (const [skirt, top] of skirtPairs) {
-    normals.setXYZ(skirt, normals.getX(top), normals.getY(top), normals.getZ(top));
-  }
-  normals.needsUpdate = true;
-
-  const material = new THREE.MeshStandardMaterial({
-    map: texture ?? undefined,
-    color: texture ? 0xffffff : 0x808080,
-    roughness: 1,
-    metalness: 0,
-    // Skirts are seen edge-on from either side, so render both faces.
-    side: THREE.DoubleSide,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
-  });
-
+  const material = createTerrainMaterial(texture, morphStart, morphEnd, cameraUniform);
   return new THREE.Mesh(geometry, material);
 };
 
@@ -274,6 +290,9 @@ export class TerrainQuadtree {
   private readonly frustum = new THREE.Frustum();
   private readonly projScreenMatrix = new THREE.Matrix4();
   private readonly cullSphere = new THREE.Sphere();
+  // Camera world position shared with every tile material so the CDLOD vertex
+  // shader can morph each vertex by its distance. Updated once per frame.
+  private readonly cameraUniform: CameraUniform = { value: new THREE.Vector3() };
   // Tiles that want loading this frame, drained (priority-ordered, capped) at
   // the end of each update. Reused between frames to avoid per-frame allocation.
   private readonly pendingLoads: Array<{
@@ -300,6 +319,7 @@ export class TerrainQuadtree {
       return;
     }
     this.tick++;
+    this.cameraUniform.value.copy(camera.position);
     this.projScreenMatrix.multiplyMatrices(
       camera.projectionMatrix,
       camera.matrixWorldInverse,
@@ -327,17 +347,20 @@ export class TerrainQuadtree {
 
   /**
    * Selects the right LOD for a node and queues the tiles it needs. Returns
-   * whether this subtree is fully covered by loaded leaf geometry (so a parent
-   * knows it can hide its coarse fallback).
+  /**
+   * Selects the LOD for a node and queues the tiles it needs. Returns whether
+   * this subtree is fully covered by loaded geometry, so a parent knows whether
+   * it must keep showing itself as a fallback.
    *
-   * To keep request counts low, only two kinds of tile are ever loaded: roots
-   * (a cheap, always-available coarse fallback) and the chosen-LOD leaves that
-   * are actually drawn. The intermediate zoom levels between them are traversed
-   * for LOD selection but never fetched — while leaves stream in, the coarse
-   * root shows through underneath, then hides once its leaves have arrived.
+   * No-blank refinement: a node only descends to (and requests) its children
+   * once it has loaded itself, and it keeps its own mesh visible until *all* of
+   * its in-view children have loaded — then it hides and the children take over
+   * in the same frame. So zooming in never drops to a blank or a much coarser
+   * level: the current surface stays put until its sharper replacement is ready.
+   * Combined with the CDLOD vertex morph, the swap is also seamless.
    *
-   * Loading is gated by the (margin-inflated) view frustum and a horizon test
-   * so only tiles near the visible near-side of the globe stream in.
+   * Loading is gated by the (margin-inflated) view frustum and a horizon test so
+   * only tiles near the visible near-side of the globe stream in.
    */
   private refine(node: TerrainNode, cameraPosition: THREE.Vector3): boolean {
     node.lastUsedTick = this.tick;
@@ -348,6 +371,8 @@ export class TerrainQuadtree {
     // away. A surface point P (|P| = R, earth centred at origin) is on the
     // visible cap when dot(P, camera) >= R^2; relaxing the threshold by the
     // tile's radius keeps large/limb tiles whose near edge is still visible.
+    // Off-view tiles count as "covered" (true) so a parent never shows a coarse
+    // fallback just because some of its children lie outside the view.
     const horizonDot = node.centerWorld.dot(cameraPosition);
     const horizonThreshold = EARTH_RADIUS * (EARTH_RADIUS - node.radius);
     if (horizonDot < horizonThreshold) {
@@ -373,7 +398,10 @@ export class TerrainQuadtree {
     this.cullSphere.set(node.centerWorld, node.radius);
     const inFrustum = this.frustum.intersectsSphere(this.cullSphere);
     const distance = cameraPosition.distanceTo(node.centerWorld);
-    const isRoot = node.z === this.rootZoom;
+
+    // This node is a candidate to draw, so make sure it is (being) loaded; it
+    // doubles as the fallback for its area until any finer children arrive.
+    this.requestLoad(node, distance);
 
     // Hysteresis: switch state only when crossing the inner/outer thresholds,
     // otherwise keep the current LOD to avoid flip-flopping near the boundary.
@@ -387,30 +415,34 @@ export class TerrainQuadtree {
     }
     node.subdivided = wantSubdivide;
 
-    if (wantSubdivide) {
-      this.ensureChildren(node);
-      let allCovered = true;
-      for (const child of node.children!) {
-        if (!this.refine(child, cameraPosition)) {
-          allCovered = false;
-        }
+    // Can't descend until this node has loaded (it is the fallback the children
+    // refine over). Draw it at this level for now.
+    if (!wantSubdivide || !node.loaded) {
+      this.hideChildren(node);
+      if (node.mesh) {
+        node.mesh.visible = node.loaded && inFrustum;
       }
-      if (isRoot) {
-        // Keep the root loaded as the global coarse fallback, shown only where
-        // its finer leaves have not yet arrived.
-        this.requestLoad(node, distance);
-        if (node.mesh) {
-          node.mesh.visible = node.loaded && inFrustum && !allCovered;
-        }
-      } else if (node.mesh) {
-        // Intermediate levels are traversed but never drawn or fetched.
-        node.mesh.visible = false;
-      }
-      return allCovered;
+      return node.loaded;
     }
 
-    // Chosen LOD leaf: the resolution actually drawn for this area.
-    this.requestLoad(node, distance);
+    // Subdividing and loaded: request/refine children. They render only once all
+    // of them are ready, so we never show a half-built finer level over the
+    // coarse fallback (which would z-fight); until then this node stays visible.
+    this.ensureChildren(node);
+    let allCovered = true;
+    for (const child of node.children!) {
+      if (!this.refine(child, cameraPosition)) {
+        allCovered = false;
+      }
+    }
+
+    if (allCovered) {
+      if (node.mesh) {
+        node.mesh.visible = false;
+      }
+      return true;
+    }
+
     this.hideChildren(node);
     if (node.mesh) {
       node.mesh.visible = node.loaded && inFrustum;
@@ -484,6 +516,9 @@ export class TerrainQuadtree {
         node.z,
         { tile, ex, ey, ez },
         texture,
+        node.worldSize * SUBDIVIDE_IN,
+        node.worldSize * SUBDIVIDE_OUT,
+        this.cameraUniform,
       );
       mesh.visible = false;
       node.texture = texture;
