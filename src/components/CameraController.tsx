@@ -12,6 +12,11 @@ import { useThree } from '@react-three/fiber';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
 import { isEqual } from 'lodash';
+
+// Maximum tilt from the local vertical: stop just short of 90° so the camera
+// can look to the horizon but never swing under the planet.
+const MAX_POLAR_ANGLE = 1.48;
+
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
   return entries
     .map(entry => {
@@ -36,6 +41,7 @@ export const CameraController = ({ children }: PropsWithChildren) => {
       loadedLogs: state.logs.loadedLogs
     };
   }, isEqual);
+  const viewMode = useSelector((state: RootState) => state.ui.viewMode);
   const pathCoordinates = useMemo(() => {
     const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
     return currentLog ? getCoordinatesFromEntries(currentLog.entries) : [];
@@ -95,10 +101,12 @@ export const CameraController = ({ children }: PropsWithChildren) => {
   // looks at its target, the new pivot lies on the same view ray, so only the
   // pivot distance changes — rotation then happens around what is in front of
   // the camera without the view jumping. Zoom still tracks the cursor.
+  // Disabled during playback, where the camera follows the plane and the orbit
+  // target is driven externally; re-pivoting there would fight that and jump.
   useEffect(() => {
     const dom = gl.domElement;
     const controls = controlsRef.current;
-    if (!dom || !controls) {
+    if (!dom || !controls || viewMode === 'playback') {
       return;
     }
 
@@ -118,6 +126,102 @@ export const CameraController = ({ children }: PropsWithChildren) => {
 
     dom.addEventListener('pointerdown', repivot);
     return () => dom.removeEventListener('pointerdown', repivot);
+  }, [camera, gl, controlsRef, viewMode]);
+
+  // Dedicated tilt control: middle-button drag changes only the pitch (polar
+  // angle) around the orbit pivot, clamped to the same horizon limit as the
+  // controls. Middle has no OrbitControls mapping, so there is no conflict.
+  useEffect(() => {
+    const dom = gl.domElement;
+    const controls = controlsRef.current;
+    if (!dom || !controls) {
+      return;
+    }
+
+    const MIN_POLAR = 0.02;
+    const MAX_POLAR = MAX_POLAR_ANGLE;
+    const TILT_SPEED = 0.005;
+
+    const target = new THREE.Vector3();
+    const offset = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+
+    let dragging = false;
+    let lastY = 0;
+
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 1) {
+        return;
+      }
+      event.preventDefault();
+      dragging = true;
+      lastY = event.clientY;
+      dom.setPointerCapture(event.pointerId);
+    };
+
+    const onMove = (event: PointerEvent) => {
+      if (!dragging) {
+        return;
+      }
+      const deltaY = event.clientY - lastY;
+      lastY = event.clientY;
+
+      target.copy(controls.target);
+      offset.copy(camera.position).sub(target);
+      up.copy(camera.up).normalize();
+      // Use the camera's own horizontal axis (local X) as the tilt axis. Unlike
+      // forward × up, this stays valid when looking straight down (forward
+      // anti-parallel to up), which is the initial view — so tilt works on
+      // first load without needing a rotate first.
+      right.setFromMatrixColumn(camera.matrixWorld, 0);
+      right.addScaledVector(up, -right.dot(up));
+      if (right.lengthSq() < 1e-8) {
+        return;
+      }
+      right.normalize();
+
+      // Dragging down tilts towards the horizon (larger polar angle).
+      const currentPolar = offset.angleTo(up);
+      const targetPolar = THREE.MathUtils.clamp(
+        currentPolar + deltaY * TILT_SPEED,
+        MIN_POLAR,
+        MAX_POLAR,
+      );
+      const deltaPolar = targetPolar - currentPolar;
+
+      // Rotating about the right axis changes the polar angle by ±deltaPolar;
+      // pick the sign that actually moves towards the requested angle.
+      quaternion.setFromAxisAngle(right, deltaPolar);
+      if (Math.abs(offset.clone().applyQuaternion(quaternion).angleTo(up) - targetPolar) > 1e-3) {
+        quaternion.setFromAxisAngle(right, -deltaPolar);
+      }
+      offset.applyQuaternion(quaternion);
+
+      camera.position.copy(target).add(offset);
+      camera.lookAt(target);
+      controls.update();
+    };
+
+    const onUp = (event: PointerEvent) => {
+      if (!dragging) {
+        return;
+      }
+      dragging = false;
+      if (dom.hasPointerCapture(event.pointerId)) {
+        dom.releasePointerCapture(event.pointerId);
+      }
+    };
+
+    dom.addEventListener('pointerdown', onDown, { capture: true });
+    dom.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      dom.removeEventListener('pointerdown', onDown, { capture: true });
+      dom.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
   }, [camera, gl, controlsRef]);
 
   return (
@@ -136,8 +240,8 @@ export const CameraController = ({ children }: PropsWithChildren) => {
         screenSpacePanning={false}
         minDistance={2}
         maxDistance={EARTH_RADIUS * 4}
-        maxPolarAngle={1.48}
-        mouseButtons={{ LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }}
+        maxPolarAngle={MAX_POLAR_ANGLE}
+        mouseButtons={{ LEFT: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }}
         touches={{ ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE }}
       />
       {children}
