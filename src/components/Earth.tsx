@@ -8,6 +8,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../state/store';
 import Slippy from './Slippy';
 import Terrain from './Terrain';
+import { SkyBackground } from './SkyBackground';
 const EarthScene = ({
   textureUrl,
 }: {
@@ -20,6 +21,7 @@ const EarthScene = ({
     <Canvas camera={{ fov: 75, near: 0.1, far: 1e9 }} gl={{ logarithmicDepthBuffer: true, antialias: true }}>
       <CameraController>
         <color attach="background" args={[0x000000]} />
+        <SkyBackground />
         <Lights />
         {!showTerrain && <Slippy />}
         {showTerrain && <Terrain />}
