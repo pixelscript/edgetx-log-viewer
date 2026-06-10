@@ -24,7 +24,7 @@ const initialState: UiState = {
     isModalVisible: false,
   },
   mapType: MapType.BingMapHybrid,
-  showTerrain: false,
+  showTerrain: true,
   terrainElevationOffset: 0,
 };
 

@@ -106,7 +106,6 @@ export default function Main() {
             />
             <Switch
               label="3D Terrain"
-              description="Drapes the map over elevation data around the flight"
               checked={showTerrain}
               onChange={(event) => dispatch(setShowTerrain(event.currentTarget.checked))}
               mt="md"
