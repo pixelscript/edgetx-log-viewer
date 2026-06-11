@@ -8,7 +8,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
 import { latLongToCartesian } from '../utils';
 import { EARTH_RADIUS, EARTH_CENTER } from '../consts';
-import { useThree } from '@react-three/fiber';
+import { useThree, useFrame } from '@react-three/fiber';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
 import { isEqual } from 'lodash';
@@ -16,6 +16,13 @@ import { isEqual } from 'lodash';
 // Maximum tilt from the local vertical: stop just short of 90° so the camera
 // can look to the horizon but never swing under the planet.
 const MAX_POLAR_ANGLE = 1.48;
+
+// Smallest gap (in metres) the camera is allowed to keep above the globe
+// surface. OrbitControls' minDistance only limits range from the orbit target,
+// so panning/tilting could still push the camera through the surface elsewhere.
+// Clamping the radial distance from the planet centre each frame is a cheap,
+// robust floor that stops the camera clipping into the globe while moving.
+const CAMERA_MIN_CLEARANCE = 2;
 
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
   return entries
@@ -46,6 +53,19 @@ export const CameraController = ({ children }: PropsWithChildren) => {
     const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
     return currentLog ? getCoordinatesFromEntries(currentLog.entries) : [];
   }, [selectedLogFilename, loadedLogs]);
+
+  // Keep the camera above the globe surface. Runs after OrbitControls' own
+  // update each frame, so if a pan/tilt/zoom drove the camera below the minimum
+  // clearance we push it straight back out along its radial. OrbitControls
+  // re-derives its orbit from the camera position on the next update, so the
+  // clamp stays consistent without fighting the controls.
+  useFrame(() => {
+    const minRadius = EARTH_RADIUS + CAMERA_MIN_CLEARANCE;
+    const radius = camera.position.distanceTo(EARTH_CENTER);
+    if (radius < minRadius) {
+      camera.position.sub(EARTH_CENTER).multiplyScalar(minRadius / radius).add(EARTH_CENTER);
+    }
+  });
 
 
   useEffect(() => {
