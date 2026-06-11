@@ -231,7 +231,7 @@ export const CameraController = ({ children }: PropsWithChildren) => {
         makeDefault
         camera={camera}
         domElement={gl.domElement}
-        enableDamping
+        enableDamping={false}
         dampingFactor={0.12}
         rotateSpeed={0.5}
         zoomSpeed={0.6}

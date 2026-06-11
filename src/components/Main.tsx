@@ -17,7 +17,7 @@ import ExportModal from './ExportModal';
 import { ThemeToggle } from './ThemeToggle';
 
 export default function Main() {
-  const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
+  const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(false);
   const [exportModalOpened, { open: openExportModal, close: closeExportModal }] = useDisclosure(false);
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const dispatch = useDispatch();
@@ -37,7 +37,7 @@ export default function Main() {
       <AppShell
         padding="md"
         header={{ height: 60 }}
-        navbar={{ width: 570, breakpoint: 'sm', collapsed: { mobile: !navbarOpened, desktop: !navbarOpened } }}
+        navbar={{ width: 570, breakpoint: 'sm', collapsed: { mobile: !navbarOpened, desktop: false } }}
       >
         <AppShell.Header>
           <Group h="100%" px="md">
@@ -87,9 +87,7 @@ export default function Main() {
         </AppShell.Header>
 
         <AppShell.Navbar p="md">
-          <LogSelectorTable />
-          <LogFileUploader />
-          <Paper withBorder shadow="sm" p="sm" mt="md">
+          <Paper withBorder shadow="sm" p="sm" mb="md">
             <Group justify="space-between" mb="sm">
               <Title order={4}>Map Type</Title>
             </Group>
@@ -112,15 +110,19 @@ export default function Main() {
               size="sm"
             />
           </Paper>
+          <LogSelectorTable />
+          <LogFileUploader />
         </AppShell.Navbar>
 
         <AppShell.Main>
           <div style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
-            <Tabs defaultValue="stats" style={{ flexShrink: 0 }} onChange={handleTabChange}>
-              <Tabs.List>
+            <Tabs defaultValue="stats" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }} onChange={handleTabChange}>
+              <Tabs.List style={{ flexShrink: 0 }}>
                 <Tabs.Tab value="stats">Stats</Tabs.Tab>
                 <Tabs.Tab value="playback">Playback</Tabs.Tab>
               </Tabs.List>
+
+              <EarthViewer />
 
               <Tabs.Panel value="stats" pt="xs" pb="md">
                 <Stack style={{ flex: 1, marginTop: 'md' }}>
@@ -135,7 +137,6 @@ export default function Main() {
                 </Stack>
               </Tabs.Panel>
             </Tabs>
-            <EarthViewer />
           </div>
         </AppShell.Main>
       </AppShell>

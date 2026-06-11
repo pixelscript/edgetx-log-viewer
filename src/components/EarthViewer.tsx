@@ -6,6 +6,6 @@ export default function EarthViewer() {
 
   const satelliteTextureUrl = 'earthmap8k.jpg';
 
-  return <Paper shadow="xs" p="md" withBorder style={{ flex: 1 }}>
+  return <Paper shadow="xs" p="md" withBorder style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
     <Earth textureUrl={satelliteTextureUrl} /></Paper>
 }
