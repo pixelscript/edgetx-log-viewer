@@ -1,4 +1,4 @@
-import { Paper, Title, Group, NumberInput, Stack, Button, Text } from "@mantine/core";
+import { Paper, Title, Group, NumberInput, Stack, Button, Text, Checkbox } from "@mantine/core";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../state/store";
 import {
@@ -31,7 +31,8 @@ export default function FileSettingsPanel() {
     settings.verticalOffset !== DEFAULT_FILE_SETTINGS.verticalOffset ||
     settings.rotationX !== DEFAULT_FILE_SETTINGS.rotationX ||
     settings.rotationY !== DEFAULT_FILE_SETTINGS.rotationY ||
-    settings.rotationZ !== DEFAULT_FILE_SETTINGS.rotationZ;
+    settings.rotationZ !== DEFAULT_FILE_SETTINGS.rotationZ ||
+    settings.interpolateGps !== DEFAULT_FILE_SETTINGS.interpolateGps;
 
   return (
     <Paper withBorder shadow="sm" p="sm" mb="md">
@@ -89,6 +90,15 @@ export default function FileSettingsPanel() {
             size="sm"
           />
         </Group>
+
+        <Checkbox
+          label="Interpolate slow to update GPS"
+          description="Smooths playback for logs whose GPS lags the sample rate"
+          checked={settings.interpolateGps}
+          onChange={(event) => update({ interpolateGps: event.currentTarget.checked })}
+          size="sm"
+          mt="xs"
+        />
       </Stack>
     </Paper>
   );

@@ -20,6 +20,9 @@ export type PlanePoint = {
   pitch: number;
   yaw: number;
   mode: string;
+  // Flight-time (ms) until the next data point. Used to scale the camera/plane
+  // smoothing to the gap between samples, which varies between logs.
+  timeDelta: number;
 }
 
 // Trail colour for a flight mode, matching the Stats page's mode key.
@@ -53,6 +56,21 @@ const CAMERA_POS_SMOOTH_TAU = 0.25;
 // velocity jumps at each data point; easing the displayed plane toward the raw
 // pose tweens out that jerkiness. Kept small so the plane still tracks closely.
 const PLANE_SMOOTH_TAU = 0.12;
+
+// The smoothing time constants above bridge the velocity discontinuities that
+// occur each time the playback clock crosses a data point. How much smoothing
+// is appropriate therefore depends on how much *wall-clock* time elapses
+// between points, which is the log's step duration divided by the playback
+// speed. The constants were tuned against a ~300ms-step log played at 10x; we
+// scale them by that reference so slower logs (e.g. 1500ms steps) and other
+// playback speeds get proportionally more or less smoothing.
+const REFERENCE_STEP_MS = 300;
+const REFERENCE_MULTIPLIER = 10;
+const REFERENCE_WALL_SEC = REFERENCE_STEP_MS / REFERENCE_MULTIPLIER / 1000;
+// Bounds on that scale so very fast playback / high-rate logs keep a little
+// smoothing, and very slow steps do not lag the camera unboundedly.
+const MIN_SMOOTH_SCALE = 0.25;
+const MAX_SMOOTH_SCALE = 8;
 
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
@@ -127,6 +145,55 @@ const interpolatePose = (points: PlanePoint[], t: number): InterpolatedPose => {
   };
 };
 
+// Reconstruct smooth motion for logs whose GPS updates slower than the log
+// sample rate. Such logs report the same coordinate for several consecutive
+// rows and then jump, so the position is a staircase: the craft appears to sit
+// still and then teleport. That also poisons the camera's velocity smoothing,
+// since most steps show zero movement and the occasional one a large leap.
+//
+// Each row where the coordinate actually changes is treated as a GPS "anchor"
+// fixed at its real time. The held rows between two anchors are redistributed
+// along the straight line between them in proportion to their elapsed flight
+// time, so the craft travels at a steady speed between fixes instead of jumping.
+// Only positions are altered; attitude, mode and timing on every row are kept,
+// so banking and value-coloured data retain their full sample resolution.
+const interpolateSlowGps = (points: PlanePoint[]): PlanePoint[] => {
+  if (points.length < 3) return points;
+
+  // Cumulative flight time (ms) at each row, from each row's time-to-next delta.
+  const times: number[] = new Array(points.length);
+  times[0] = 0;
+  for (let i = 1; i < points.length; i++) {
+    times[i] = times[i - 1] + Math.max(0, points[i - 1].timeDelta);
+  }
+
+  // Rows where the coordinate differs from the previous distinct fix.
+  const anchorIndices: number[] = [0];
+  for (let i = 1; i < points.length; i++) {
+    const lastAnchor = points[anchorIndices[anchorIndices.length - 1]].position;
+    if (!points[i].position.equals(lastAnchor)) {
+      anchorIndices.push(i);
+    }
+  }
+
+  // GPS already updates (almost) every row: nothing to reconstruct.
+  if (anchorIndices.length >= points.length - 1) return points;
+
+  const result = points.map(point => ({ ...point }));
+  for (let a = 0; a < anchorIndices.length - 1; a++) {
+    const startIdx = anchorIndices[a];
+    const endIdx = anchorIndices[a + 1];
+    const startPos = points[startIdx].position;
+    const endPos = points[endIdx].position;
+    const span = times[endIdx] - times[startIdx];
+    for (let i = startIdx + 1; i < endIdx; i++) {
+      const frac = span > 0 ? (times[i] - times[startIdx]) / span : 0;
+      result[i].position = startPos.clone().lerp(endPos, frac);
+    }
+  }
+  return result;
+};
+
 const PlaybackPathLine: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
   const planeRootRef = useRef<THREE.Group>(null);
@@ -136,7 +203,7 @@ const PlaybackPathLine: React.FC = () => {
   const targetCenterFromStore = useSelector((state: RootState) => state.logs.targetCenter);
   const terrainElevationOffset = useSelector((state: RootState) => state.ui.terrainElevationOffset);
   const fileSettings = useSelector(selectFileSettings(selectedLogFilename));
-  const { progressClockRef, cameraView, selectedModel } = usePlayback();
+  const { progressClockRef, cameraView, selectedModel, multiplier } = usePlayback();
   const { controlsRef } = useControlsContext();
   const { camera } = useThree();
 
@@ -197,12 +264,12 @@ const PlaybackPathLine: React.FC = () => {
           const position = latLongToCartesian(gps.lat, gps.long, (altitude ?? 0) + altOffset);
           const normal = new THREE.Vector3().subVectors(position, EARTH_CENTER).normalize()
           const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal)
-          return { position, quaternion, roll: entry['roll'], pitch: entry['ptch'], yaw: entry['yaw'], mode: (entry['fm'] as string) ?? 'UNKNOWN' };
+          return { position, quaternion, roll: entry['roll'], pitch: entry['ptch'], yaw: entry['yaw'], mode: (entry['fm'] as string) ?? 'UNKNOWN', timeDelta: (entry['timeDelta'] as number) ?? 0 };
         }
       })
       .filter(Boolean) as PlanePoint[];
-    return flightPoints;
-  }, [selectedLogFilename, loadedLogs, terrainElevationOffset, fileSettings.verticalOffset]);
+    return fileSettings.interpolateGps ? interpolateSlowGps(flightPoints) : flightPoints;
+  }, [selectedLogFilename, loadedLogs, terrainElevationOffset, fileSettings.verticalOffset, fileSettings.interpolateGps]);
 
   // Trail of points already flown, split into contiguous same-mode segments so
   // it can be colour-coded by flight mode like the Stats page. Ends at
@@ -255,10 +322,22 @@ const PlaybackPathLine: React.FC = () => {
 
     const pose = interpolatePose(points, progressClockRef.current);
 
+    // Scale all the low-pass filters to the wall-clock gap between data points
+    // at the current position (step duration / playback speed), relative to the
+    // reference the constants were tuned against. This keeps the camera feeling
+    // the same whether points are 300ms or 1500ms apart, or playback is sped up.
+    const stepIndex = Math.min(Math.max(0, Math.floor(progressClockRef.current)), points.length - 1);
+    const stepMs = Math.max(1, points[stepIndex].timeDelta);
+    const wallStepSec = stepMs / multiplier / 1000;
+    const smoothScale = Math.max(
+      MIN_SMOOTH_SCALE,
+      Math.min(MAX_SMOOTH_SCALE, wallStepSec / REFERENCE_WALL_SEC),
+    );
+
     // Ease the rendered plane toward the raw interpolated pose with a frame-rate
     // independent low-pass filter, so its position and banking tween smoothly
     // instead of changing velocity abruptly at each data point.
-    const planeAlpha = 1 - Math.exp(-delta / PLANE_SMOOTH_TAU);
+    const planeAlpha = 1 - Math.exp(-delta / (PLANE_SMOOTH_TAU * smoothScale));
     const planePos = planePosRef.current
       ? planePosRef.current.lerp(pose.position, planeAlpha)
       : pose.position.clone();
@@ -295,7 +374,7 @@ const PlaybackPathLine: React.FC = () => {
     // Anchor the camera to a low-pass-filtered version of the plane position so
     // the rig glides forward instead of stepping with the path's per-point
     // velocity changes. The plane itself still uses its exact interpolated pose.
-    const posAlpha = 1 - Math.exp(-delta / CAMERA_POS_SMOOTH_TAU);
+    const posAlpha = 1 - Math.exp(-delta / (CAMERA_POS_SMOOTH_TAU * smoothScale));
     const pos = smoothedPosRef.current
       ? smoothedPosRef.current.lerp(pose.position, posAlpha)
       : pose.position.clone();
@@ -358,7 +437,7 @@ const PlaybackPathLine: React.FC = () => {
     // produces large tilt swings each step. The smoothed orientation, not the
     // raw one, is what carries the camera rig below.
     const smoothedQuat = smoothedQuatRef.current ?? frameQuat.clone();
-    const alpha = 1 - Math.exp(-delta / CAMERA_SMOOTH_TAU);
+    const alpha = 1 - Math.exp(-delta / (CAMERA_SMOOTH_TAU * smoothScale));
     smoothedQuat.slerp(frameQuat, alpha);
     smoothedQuatRef.current = smoothedQuat;
 

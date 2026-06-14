@@ -9,6 +9,10 @@ export interface FileSettings {
   rotationX: number;
   rotationY: number;
   rotationZ: number;
+  // Reconstruct smooth motion for logs whose GPS updates slower than the log
+  // sample rate (the position sits still for several rows, then jumps). When on,
+  // playback eases the craft between distinct GPS fixes over their real time gap.
+  interpolateGps: boolean;
 }
 
 export const DEFAULT_FILE_SETTINGS: FileSettings = {
@@ -16,6 +20,7 @@ export const DEFAULT_FILE_SETTINGS: FileSettings = {
   rotationX: 0,
   rotationY: 0,
   rotationZ: 0,
+  interpolateGps: true,
 };
 
 const STORAGE_KEY = 'edgetx-log-viewer:file-settings';
@@ -71,7 +76,11 @@ const settingsSlice = createSlice({
 export const { setFileSettings, resetFileSettings } = settingsSlice.actions;
 
 export const selectFileSettings = (filename: string | null) =>
-  (state: RootState): FileSettings =>
-    (filename ? state.settings.byFilename[filename] : undefined) ?? DEFAULT_FILE_SETTINGS;
+  (state: RootState): FileSettings => {
+    const stored = filename ? state.settings.byFilename[filename] : undefined;
+    // Merge over the defaults so settings saved before a field existed still
+    // pick up its default value rather than reading as undefined.
+    return stored ? { ...DEFAULT_FILE_SETTINGS, ...stored } : DEFAULT_FILE_SETTINGS;
+  };
 
 export default settingsSlice.reducer;

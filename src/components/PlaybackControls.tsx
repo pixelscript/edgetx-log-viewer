@@ -71,9 +71,10 @@ const PlaybackControls: React.FC = () => {
     setCameraView,
     selectedModel,
     setSelectedModel,
+    multiplier,
+    setMultiplier,
   } = usePlayback();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [multiplier, setMultiplier] = useState(10);
   const selectedLogData = useSelector((state: RootState) =>
     state.logs.selectedLogFilename ? state.logs.loadedLogs[state.logs.selectedLogFilename] : null
     , isEqual);
