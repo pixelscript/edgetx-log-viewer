@@ -9,6 +9,7 @@ import { isEqual } from 'lodash';
 import { ColoredPathLine } from './ColoredPathLine';
 import ValueColoredPath from './ValueColoredPath';
 import { selectTerrainElevationOffset } from '../state/uiSlice';
+import { selectFileSettings } from '../state/settingsSlice';
 
 import { MODE_COLOURS } from './ModeColorKey';
 
@@ -59,7 +60,8 @@ export const PathLines: React.FC = () => {
   const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
   const logEntries = currentLog?.entries ?? [];
   const terrainElevationOffset = useSelector(selectTerrainElevationOffset);
-  const altOffset = Math.max(0 - (currentLog?.stats.minAltitudeM ?? 0), 0) + terrainElevationOffset;
+  const fileSettings = useSelector(selectFileSettings(selectedLogFilename));
+  const altOffset = Math.max(0 - (currentLog?.stats.minAltitudeM ?? 0), 0) + terrainElevationOffset + fileSettings.verticalOffset;
   const modePaths = useMemo(() => {
       if (!selectedField && logEntries.length > 0) {
           return groupEntriesByMode(logEntries, altOffset);

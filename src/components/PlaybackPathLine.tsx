@@ -12,6 +12,7 @@ import { isEqual } from 'lodash';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ColoredPathLine } from './ColoredPathLine';
 import { MODE_COLOURS } from './ModeColorKey';
+import { selectFileSettings } from '../state/settingsSlice';
 export type PlanePoint = {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;
@@ -134,6 +135,7 @@ const PlaybackPathLine: React.FC = () => {
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
   const targetCenterFromStore = useSelector((state: RootState) => state.logs.targetCenter);
   const terrainElevationOffset = useSelector((state: RootState) => state.ui.terrainElevationOffset);
+  const fileSettings = useSelector(selectFileSettings(selectedLogFilename));
   const { progressClockRef, cameraView, selectedModel } = usePlayback();
   const { controlsRef } = useControlsContext();
   const { camera } = useThree();
@@ -170,10 +172,22 @@ const PlaybackPathLine: React.FC = () => {
   if (selectedModel === 'Drone') {
     scale = 10;
   }
+
+  // User-tuned orientation correction (degrees -> radians) applied on top of the
+  // model's base mounting rotation so a mis-aligned model can be pointed correctly.
+  const userRotation = useMemo(
+    () => new THREE.Euler(
+      THREE.MathUtils.degToRad(fileSettings.rotationX),
+      THREE.MathUtils.degToRad(fileSettings.rotationY),
+      THREE.MathUtils.degToRad(fileSettings.rotationZ),
+    ),
+    [fileSettings.rotationX, fileSettings.rotationY, fileSettings.rotationZ],
+  );
+
   const allFlightDataPoints = useMemo(() => {
     if (!selectedLogFilename) return [];
     const logData = loadedLogs[selectedLogFilename];
-    const altOffset = Math.max(0 - (logData?.stats.minAltitudeM ?? 0), 0) + terrainElevationOffset;
+    const altOffset = Math.max(0 - (logData?.stats.minAltitudeM ?? 0), 0) + terrainElevationOffset + fileSettings.verticalOffset;
     if (!logData || !logData.entries || logData.entries.length === 0) return [];
     const flightPoints = logData.entries
       .map((entry: LogEntry) => {
@@ -188,7 +202,7 @@ const PlaybackPathLine: React.FC = () => {
       })
       .filter(Boolean) as PlanePoint[];
     return flightPoints;
-  }, [selectedLogFilename, loadedLogs, terrainElevationOffset]);
+  }, [selectedLogFilename, loadedLogs, terrainElevationOffset, fileSettings.verticalOffset]);
 
   // Trail of points already flown, split into contiguous same-mode segments so
   // it can be colour-coded by flight mode like the Stats page. Ends at
@@ -432,7 +446,9 @@ return (
     {hasPlane && (
       <group ref={planeRootRef}>
         <group ref={planeAttitudeRef}>
-          <group ref={groupRef} name="plane" rotateOnAxis={[0, 1, 0]} rotation={rotation} scale={scale}></group>
+          <group rotation={userRotation}>
+            <group ref={groupRef} name="plane" rotateOnAxis={[0, 1, 0]} rotation={rotation} scale={scale}></group>
+          </group>
         </group>
       </group>
     )}

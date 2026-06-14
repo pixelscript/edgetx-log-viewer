@@ -15,6 +15,7 @@ import { IconDownload, IconBrandGithub } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
 import ExportModal from './ExportModal';
 import { ThemeToggle } from './ThemeToggle';
+import FileSettingsPanel from './FileSettingsPanel';
 
 export default function Main() {
   const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(false);
@@ -110,6 +111,7 @@ export default function Main() {
               size="sm"
             />
           </Paper>
+          <FileSettingsPanel />
           <LogSelectorTable />
           <LogFileUploader />
         </AppShell.Navbar>
