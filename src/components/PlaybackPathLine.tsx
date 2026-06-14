@@ -11,13 +11,19 @@ import { EARTH_CENTER } from '../consts';
 import { isEqual } from 'lodash';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ColoredPathLine } from './ColoredPathLine';
+import { MODE_COLOURS } from './ModeColorKey';
 export type PlanePoint = {
   position: THREE.Vector3;
   quaternion: THREE.Quaternion;
   roll: number;
   pitch: number;
   yaw: number;
+  mode: string;
 }
+
+// Trail colour for a flight mode, matching the Stats page's mode key.
+const getModeColor = (mode: string): THREE.ColorRepresentation =>
+  MODE_COLOURS[mode as keyof typeof MODE_COLOURS] ?? MODE_COLOURS.UNKNOWN;
 
 // Camera rig offsets (metres) used when first entering Follow / FPV views.
 const FOLLOW_DISTANCE_BACK = 60;
@@ -134,20 +140,32 @@ const PlaybackPathLine: React.FC = () => {
           const position = latLongToCartesian(gps.lat, gps.long, (altitude ?? 0) + altOffset);
           const normal = new THREE.Vector3().subVectors(position, EARTH_CENTER).normalize()
           const quaternion = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal)
-          return { position, quaternion, roll: entry['roll'], pitch: entry['ptch'], yaw: entry['yaw'] };
+          return { position, quaternion, roll: entry['roll'], pitch: entry['ptch'], yaw: entry['yaw'], mode: (entry['fm'] as string) ?? 'UNKNOWN' };
         }
       })
       .filter(Boolean) as PlanePoint[];
     return flightPoints;
   }, [selectedLogFilename, loadedLogs, terrainElevationOffset]);
 
-  // Trail line of points already flown. Keyed off the integer progress so the
-  // line geometry only rebuilds when a new data point is reached, not on every
-  // interpolated animation frame.
-  const linePoints = useMemo(() => {
+  // Trail of points already flown, split into contiguous same-mode segments so
+  // it can be colour-coded by flight mode like the Stats page. Keyed off the
+  // integer progress so the geometry only rebuilds when a new data point is
+  // reached, not on every interpolated animation frame.
+  const trailSegments = useMemo(() => {
     if (allFlightDataPoints.length === 0) return [];
     const endIndex = Math.min(allFlightDataPoints.length, progress + 1);
-    return allFlightDataPoints.slice(0, endIndex).map(p => p.position);
+    const segments: { mode: string; points: THREE.Vector3[] }[] = [];
+    let current: { mode: string; points: THREE.Vector3[] } | null = null;
+    for (let i = 0; i < endIndex; i++) {
+      const point = allFlightDataPoints[i];
+      if (!current || current.mode !== point.mode) {
+        current = { mode: point.mode, points: [point.position] };
+        segments.push(current);
+      } else {
+        current.points.push(point.position);
+      }
+    }
+    return segments.filter(segment => segment.points.length >= 2);
   }, [allFlightDataPoints, progress]);
 
   const hasPlane = allFlightDataPoints.length > 0;
@@ -311,7 +329,7 @@ const PlaybackPathLine: React.FC = () => {
     );
   }, [groupRef, selectedModel]);
 
-if (linePoints.length < 2 && !hasPlane) {
+if (trailSegments.length === 0 && !hasPlane) {
   return null;
 }
 
@@ -319,9 +337,15 @@ const clampedPlaneScale = 5
 
 return (
   <>
-    {linePoints.length >= 2 && (
-      <ColoredPathLine points={linePoints} color={'white'} lineWidth={5} depthTest={true} />
-    )}
+    {trailSegments.map((segment, index) => (
+      <ColoredPathLine
+        key={`${segment.mode}-${index}`}
+        points={segment.points}
+        color={getModeColor(segment.mode)}
+        lineWidth={5}
+        depthTest={true}
+      />
+    ))}
     {hasPlane && (
       <group ref={planeRootRef}>
         <group ref={planeAttitudeRef}>
