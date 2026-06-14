@@ -32,7 +32,8 @@ export default function FileSettingsPanel() {
     settings.rotationX !== DEFAULT_FILE_SETTINGS.rotationX ||
     settings.rotationY !== DEFAULT_FILE_SETTINGS.rotationY ||
     settings.rotationZ !== DEFAULT_FILE_SETTINGS.rotationZ ||
-    settings.interpolateGps !== DEFAULT_FILE_SETTINGS.interpolateGps;
+    settings.interpolateGps !== DEFAULT_FILE_SETTINGS.interpolateGps ||
+    settings.interpolateAttitude !== DEFAULT_FILE_SETTINGS.interpolateAttitude;
 
   return (
     <Paper withBorder shadow="sm" p="sm" mb="md">
@@ -92,12 +93,20 @@ export default function FileSettingsPanel() {
         </Group>
 
         <Checkbox
-          label="Interpolate slow to update GPS"
+          label="Interpolate GPS"
           description="Smooths playback for logs whose GPS lags the sample rate"
           checked={settings.interpolateGps}
           onChange={(event) => update({ interpolateGps: event.currentTarget.checked })}
           size="sm"
           mt="xs"
+        />
+
+        <Checkbox
+          label="Interpolate attitude"
+          description="Smooths banking for logs whose roll/pitch/yaw lags the sample rate"
+          checked={settings.interpolateAttitude}
+          onChange={(event) => update({ interpolateAttitude: event.currentTarget.checked })}
+          size="sm"
         />
       </Stack>
     </Paper>

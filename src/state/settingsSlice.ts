@@ -13,6 +13,11 @@ export interface FileSettings {
   // sample rate (the position sits still for several rows, then jumps). When on,
   // playback eases the craft between distinct GPS fixes over their real time gap.
   interpolateGps: boolean;
+  // Reconstruct smooth banking for logs whose attitude (roll/pitch/yaw) updates
+  // slower than the log sample rate (the orientation is held for several rows,
+  // then snaps). When on, playback eases the craft between distinct attitude
+  // readings over their real time gap.
+  interpolateAttitude: boolean;
 }
 
 export const DEFAULT_FILE_SETTINGS: FileSettings = {
@@ -21,6 +26,7 @@ export const DEFAULT_FILE_SETTINGS: FileSettings = {
   rotationY: 0,
   rotationZ: 0,
   interpolateGps: true,
+  interpolateAttitude: true,
 };
 
 const STORAGE_KEY = 'edgetx-log-viewer:file-settings';

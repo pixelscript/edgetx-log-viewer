@@ -145,19 +145,23 @@ const interpolatePose = (points: PlanePoint[], t: number): InterpolatedPose => {
   };
 };
 
-// Reconstruct smooth motion for logs whose GPS updates slower than the log
-// sample rate. Such logs report the same coordinate for several consecutive
-// rows and then jump, so the position is a staircase: the craft appears to sit
-// still and then teleport. That also poisons the camera's velocity smoothing,
-// since most steps show zero movement and the occasional one a large leap.
+// Reconstruct smooth values for logs whose telemetry updates slower than the
+// log sample rate. Such logs report the same reading for several consecutive
+// rows and then jump, producing a staircase: the quantity sits still and then
+// snaps. That also poisons the camera/plane smoothing, since most steps show no
+// change and the occasional one a large leap.
 //
-// Each row where the coordinate actually changes is treated as a GPS "anchor"
-// fixed at its real time. The held rows between two anchors are redistributed
-// along the straight line between them in proportion to their elapsed flight
-// time, so the craft travels at a steady speed between fixes instead of jumping.
-// Only positions are altered; attitude, mode and timing on every row are kept,
-// so banking and value-coloured data retain their full sample resolution.
-const interpolateSlowGps = (points: PlanePoint[]): PlanePoint[] => {
+// Each row where `hasChanged` reports a new reading (relative to the previous
+// distinct one) is treated as an "anchor" fixed at its real flight time. The
+// held rows between two anchors are blended by `apply` in proportion to their
+// elapsed flight time, so the quantity ramps steadily between genuine readings
+// instead of jumping. Only the blended field is altered; every other field on
+// each row is preserved, so the rest of the data keeps its full resolution.
+const interpolateHeldReadings = (
+  points: PlanePoint[],
+  hasChanged: (previousAnchor: PlanePoint, candidate: PlanePoint) => boolean,
+  apply: (target: PlanePoint, start: PlanePoint, end: PlanePoint, frac: number) => void,
+): PlanePoint[] => {
   if (points.length < 3) return points;
 
   // Cumulative flight time (ms) at each row, from each row's time-to-next delta.
@@ -167,32 +171,57 @@ const interpolateSlowGps = (points: PlanePoint[]): PlanePoint[] => {
     times[i] = times[i - 1] + Math.max(0, points[i - 1].timeDelta);
   }
 
-  // Rows where the coordinate differs from the previous distinct fix.
+  // Rows whose reading differs from the previous distinct one.
   const anchorIndices: number[] = [0];
   for (let i = 1; i < points.length; i++) {
-    const lastAnchor = points[anchorIndices[anchorIndices.length - 1]].position;
-    if (!points[i].position.equals(lastAnchor)) {
+    if (hasChanged(points[anchorIndices[anchorIndices.length - 1]], points[i])) {
       anchorIndices.push(i);
     }
   }
 
-  // GPS already updates (almost) every row: nothing to reconstruct.
+  // Reading already updates (almost) every row: nothing to reconstruct.
   if (anchorIndices.length >= points.length - 1) return points;
 
   const result = points.map(point => ({ ...point }));
   for (let a = 0; a < anchorIndices.length - 1; a++) {
     const startIdx = anchorIndices[a];
     const endIdx = anchorIndices[a + 1];
-    const startPos = points[startIdx].position;
-    const endPos = points[endIdx].position;
     const span = times[endIdx] - times[startIdx];
     for (let i = startIdx + 1; i < endIdx; i++) {
       const frac = span > 0 ? (times[i] - times[startIdx]) / span : 0;
-      result[i].position = startPos.clone().lerp(endPos, frac);
+      apply(result[i], points[startIdx], points[endIdx], frac);
     }
   }
   return result;
 };
+
+// Smooth a staircased GPS position by easing along the straight line between
+// distinct fixes, so the craft travels at a steady speed instead of teleporting.
+const interpolateSlowGps = (points: PlanePoint[]): PlanePoint[] =>
+  interpolateHeldReadings(
+    points,
+    (anchor, candidate) => !candidate.position.equals(anchor.position),
+    (target, start, end, frac) => {
+      target.position = start.position.clone().lerp(end.position, frac);
+    },
+  );
+
+// Smooth a staircased attitude by easing roll/pitch/yaw along their shortest
+// angular path between distinct readings, so the craft banks smoothly instead
+// of snapping between held orientations.
+const interpolateSlowAttitude = (points: PlanePoint[]): PlanePoint[] =>
+  interpolateHeldReadings(
+    points,
+    (anchor, candidate) =>
+      candidate.roll !== anchor.roll ||
+      candidate.pitch !== anchor.pitch ||
+      candidate.yaw !== anchor.yaw,
+    (target, start, end, frac) => {
+      target.roll = lerpAngle(start.roll, end.roll, frac);
+      target.pitch = lerpAngle(start.pitch, end.pitch, frac);
+      target.yaw = lerpAngle(start.yaw, end.yaw, frac);
+    },
+  );
 
 const PlaybackPathLine: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
@@ -268,8 +297,11 @@ const PlaybackPathLine: React.FC = () => {
         }
       })
       .filter(Boolean) as PlanePoint[];
-    return fileSettings.interpolateGps ? interpolateSlowGps(flightPoints) : flightPoints;
-  }, [selectedLogFilename, loadedLogs, terrainElevationOffset, fileSettings.verticalOffset, fileSettings.interpolateGps]);
+    let points = flightPoints;
+    if (fileSettings.interpolateGps) points = interpolateSlowGps(points);
+    if (fileSettings.interpolateAttitude) points = interpolateSlowAttitude(points);
+    return points;
+  }, [selectedLogFilename, loadedLogs, terrainElevationOffset, fileSettings.verticalOffset, fileSettings.interpolateGps, fileSettings.interpolateAttitude]);
 
   // Trail of points already flown, split into contiguous same-mode segments so
   // it can be colour-coded by flight mode like the Stats page. Ends at
