@@ -45,7 +45,7 @@ const ValueColoredPath: React.FC<{ logEntries: LogEntry[]; selectedField: string
       }
     }
     return segmentData;
-  }, [logEntries, selectedField]);
+  }, [logEntries, selectedField, altOffset]);
 
   const valuePathColorScaleFn = (normalizedValue: number): THREE.Color => {
     const hue = 0 / 360;

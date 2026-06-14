@@ -7,11 +7,23 @@ import * as THREE from 'three';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../state/store';
 import { latLongToCartesian } from '../utils';
-import { EARTH_RADIUS } from '../consts';
-import { useThree } from '@react-three/fiber';
+import { EARTH_RADIUS, EARTH_CENTER } from '../consts';
+import { useThree, useFrame } from '@react-three/fiber';
 import type { LogEntry, GPS } from '../state/types/logTypes';
 import { setTargetCenter } from '../state/logsSlice';
 import { isEqual } from 'lodash';
+
+// Maximum tilt from the local vertical: stop just short of 90° so the camera
+// can look to the horizon but never swing under the planet.
+const MAX_POLAR_ANGLE = 1.48;
+
+// Smallest gap (in metres) the camera is allowed to keep above the globe
+// surface. OrbitControls' minDistance only limits range from the orbit target,
+// so panning/tilting could still push the camera through the surface elsewhere.
+// Clamping the radial distance from the planet centre each frame is a cheap,
+// robust floor that stops the camera clipping into the globe while moving.
+const CAMERA_MIN_CLEARANCE = 2;
+
 const getCoordinatesFromEntries = (entries: LogEntry[]): { latitude: number; longitude: number; altitude: number }[] => {
   return entries
     .map(entry => {
@@ -36,10 +48,24 @@ export const CameraController = ({ children }: PropsWithChildren) => {
       loadedLogs: state.logs.loadedLogs
     };
   }, isEqual);
+  const viewMode = useSelector((state: RootState) => state.ui.viewMode);
   const pathCoordinates = useMemo(() => {
     const currentLog = selectedLogFilename ? loadedLogs[selectedLogFilename] : null;
     return currentLog ? getCoordinatesFromEntries(currentLog.entries) : [];
   }, [selectedLogFilename, loadedLogs]);
+
+  // Keep the camera above the globe surface. Runs after OrbitControls' own
+  // update each frame, so if a pan/tilt/zoom drove the camera below the minimum
+  // clearance we push it straight back out along its radial. OrbitControls
+  // re-derives its orbit from the camera position on the next update, so the
+  // clamp stays consistent without fighting the controls.
+  useFrame(() => {
+    const minRadius = EARTH_RADIUS + CAMERA_MIN_CLEARANCE;
+    const radius = camera.position.distanceTo(EARTH_CENTER);
+    if (radius < minRadius) {
+      camera.position.sub(EARTH_CENTER).multiplyScalar(minRadius / radius).add(EARTH_CENTER);
+    }
+  });
 
 
   useEffect(() => {
@@ -74,6 +100,11 @@ export const CameraController = ({ children }: PropsWithChildren) => {
       camPos = direction.multiplyScalar(targetCenter.length() + distance);
     }
     dispatch(setTargetCenter({ x: targetCenter.x, y: targetCenter.y, z: targetCenter.z }));
+    // Align the camera's up axis to the local surface normal so the orbit pole
+    // is "straight up" at the flight location. This keeps the horizon level and
+    // makes tilt/rotation feel natural, like Google Earth, instead of orbiting
+    // around the globe's fixed Y axis.
+    camera.up.copy(targetCenter).normalize();
     if (controlsRef.current) {
       controlsRef.current.target.copy(targetCenter);
       camera.position.copy(camPos);
@@ -85,6 +116,134 @@ export const CameraController = ({ children }: PropsWithChildren) => {
 
   }, [pathCoordinates, camera, controlsRef]);
 
+  // Google Earth-style interaction: when a drag begins, move the orbit pivot to
+  // the surface point at the centre of the view. Because the camera already
+  // looks at its target, the new pivot lies on the same view ray, so only the
+  // pivot distance changes — rotation then happens around what is in front of
+  // the camera without the view jumping. Zoom still tracks the cursor.
+  // Disabled during playback, where the camera follows the plane and the orbit
+  // target is driven externally; re-pivoting there would fight that and jump.
+  useEffect(() => {
+    const dom = gl.domElement;
+    const controls = controlsRef.current;
+    if (!dom || !controls || viewMode === 'playback') {
+      return;
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const globe = new THREE.Sphere(EARTH_CENTER, EARTH_RADIUS);
+    const center = new THREE.Vector2(0, 0);
+    const hit = new THREE.Vector3();
+
+    const repivot = () => {
+      raycaster.setFromCamera(center, camera);
+      if (!raycaster.ray.intersectSphere(globe, hit)) {
+        return;
+      }
+      controls.target.copy(hit);
+      controls.update();
+    };
+
+    dom.addEventListener('pointerdown', repivot);
+    return () => dom.removeEventListener('pointerdown', repivot);
+  }, [camera, gl, controlsRef, viewMode]);
+
+  // Dedicated tilt control: middle-button drag changes only the pitch (polar
+  // angle) around the orbit pivot, clamped to the same horizon limit as the
+  // controls. Middle has no OrbitControls mapping, so there is no conflict.
+  useEffect(() => {
+    const dom = gl.domElement;
+    const controls = controlsRef.current;
+    if (!dom || !controls) {
+      return;
+    }
+
+    const MIN_POLAR = 0.02;
+    const MAX_POLAR = MAX_POLAR_ANGLE;
+    const TILT_SPEED = 0.005;
+
+    const target = new THREE.Vector3();
+    const offset = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    const right = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+
+    let dragging = false;
+    let lastY = 0;
+
+    const onDown = (event: PointerEvent) => {
+      if (event.button !== 1) {
+        return;
+      }
+      event.preventDefault();
+      dragging = true;
+      lastY = event.clientY;
+      dom.setPointerCapture(event.pointerId);
+    };
+
+    const onMove = (event: PointerEvent) => {
+      if (!dragging) {
+        return;
+      }
+      const deltaY = event.clientY - lastY;
+      lastY = event.clientY;
+
+      target.copy(controls.target);
+      offset.copy(camera.position).sub(target);
+      up.copy(camera.up).normalize();
+      // Use the camera's own horizontal axis (local X) as the tilt axis. Unlike
+      // forward × up, this stays valid when looking straight down (forward
+      // anti-parallel to up), which is the initial view — so tilt works on
+      // first load without needing a rotate first.
+      right.setFromMatrixColumn(camera.matrixWorld, 0);
+      right.addScaledVector(up, -right.dot(up));
+      if (right.lengthSq() < 1e-8) {
+        return;
+      }
+      right.normalize();
+
+      // Dragging down tilts towards the horizon (larger polar angle).
+      const currentPolar = offset.angleTo(up);
+      const targetPolar = THREE.MathUtils.clamp(
+        currentPolar + deltaY * TILT_SPEED,
+        MIN_POLAR,
+        MAX_POLAR,
+      );
+      const deltaPolar = targetPolar - currentPolar;
+
+      // Rotating about the right axis changes the polar angle by ±deltaPolar;
+      // pick the sign that actually moves towards the requested angle.
+      quaternion.setFromAxisAngle(right, deltaPolar);
+      if (Math.abs(offset.clone().applyQuaternion(quaternion).angleTo(up) - targetPolar) > 1e-3) {
+        quaternion.setFromAxisAngle(right, -deltaPolar);
+      }
+      offset.applyQuaternion(quaternion);
+
+      camera.position.copy(target).add(offset);
+      camera.lookAt(target);
+      controls.update();
+    };
+
+    const onUp = (event: PointerEvent) => {
+      if (!dragging) {
+        return;
+      }
+      dragging = false;
+      if (dom.hasPointerCapture(event.pointerId)) {
+        dom.releasePointerCapture(event.pointerId);
+      }
+    };
+
+    dom.addEventListener('pointerdown', onDown, { capture: true });
+    dom.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      dom.removeEventListener('pointerdown', onDown, { capture: true });
+      dom.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [camera, gl, controlsRef]);
+
   return (
     <ControlsContext.Provider value={{ controlsRef }}>
       <OrbitControls
@@ -92,10 +251,18 @@ export const CameraController = ({ children }: PropsWithChildren) => {
         makeDefault
         camera={camera}
         domElement={gl.domElement}
-        enableDamping
-        dampingFactor={1}
-        zoomSpeed={0.4}
-        rotateSpeed={0.3}
+        enableDamping={false}
+        dampingFactor={0.12}
+        rotateSpeed={0.5}
+        zoomSpeed={0.6}
+        panSpeed={0.8}
+        zoomToCursor
+        screenSpacePanning={false}
+        minDistance={2}
+        maxDistance={EARTH_RADIUS * 4}
+        maxPolarAngle={MAX_POLAR_ANGLE}
+        mouseButtons={{ LEFT: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }}
+        touches={{ ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE }}
       />
       {children}
     </ControlsContext.Provider>
