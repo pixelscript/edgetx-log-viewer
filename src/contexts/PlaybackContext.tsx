@@ -1,10 +1,12 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 
+export type PlaybackCameraView = 'default' | 'follow' | 'fpv';
+
 interface PlaybackContextType {
   playbackProgress: number;
   setPlaybackProgress: React.Dispatch<React.SetStateAction<number>>;
-  followPlane: boolean;
-  setFollowPlane: React.Dispatch<React.SetStateAction<boolean>>;
+  cameraView: PlaybackCameraView;
+  setCameraView: React.Dispatch<React.SetStateAction<PlaybackCameraView>>;
   selectedModel: string;
   setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
 }
@@ -13,11 +15,11 @@ const PlaybackContext = createContext<PlaybackContextType | undefined>(undefined
 
 export const PlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [playbackProgress, setPlaybackProgress] = useState(0);
-  const [followPlane, setFollowPlane] = useState(true);
+  const [cameraView, setCameraView] = useState<PlaybackCameraView>('default');
   const [selectedModel, setSelectedModel] = useState('Small_Airplane'); 
 
   return (
-    <PlaybackContext.Provider value={{ playbackProgress, setPlaybackProgress, followPlane, setFollowPlane, selectedModel, setSelectedModel }}>
+    <PlaybackContext.Provider value={{ playbackProgress, setPlaybackProgress, cameraView, setCameraView, selectedModel, setSelectedModel }}>
       {children}
     </PlaybackContext.Provider>
   );

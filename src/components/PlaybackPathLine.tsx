@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { useControlsContext } from '../contexts/ControlsContext';
 import { useThree } from '@react-three/fiber';
 import { RootState } from '../state/store';
-import { usePlayback } from '../contexts/PlaybackContext';
+import { usePlayback, PlaybackCameraView } from '../contexts/PlaybackContext';
 import { latLongToCartesian } from '../utils/latLongToCartesian';
 import { LogEntry, GPS } from '../state/types/logTypes';
 import { EARTH_CENTER } from '../consts';
@@ -19,15 +19,29 @@ export type PlanePoint = {
   yaw: number;
 }
 
+// Camera rig offsets (metres) used when first entering Follow / FPV views.
+const FOLLOW_DISTANCE_BACK = 60;
+const FOLLOW_DISTANCE_UP = 22;
+const FOLLOW_LOOK_AHEAD = 40;
+const FPV_FORWARD = 6;
+const FPV_UP = 2.5;
+const FPV_LOOK_AHEAD = 500;
+
 const PlaybackPathLine: React.FC = () => {
   const groupRef = useRef<THREE.Group>(null);
   const selectedLogFilename = useSelector((state: RootState) => state.logs.selectedLogFilename);
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
   const targetCenterFromStore = useSelector((state: RootState) => state.logs.targetCenter);
   const terrainElevationOffset = useSelector((state: RootState) => state.ui.terrainElevationOffset);
-  const { playbackProgress: progress, followPlane, selectedModel } = usePlayback();
+  const { playbackProgress: progress, cameraView, selectedModel } = usePlayback();
   const { controlsRef } = useControlsContext();
   const { camera } = useThree();
+
+  // Tracks which view we last framed, plus the plane's previous pose, so we can
+  // carry the camera rig along with the plane's motion between playback steps.
+  const framedViewRef = useRef<PlaybackCameraView | null>(null);
+  const prevPosRef = useRef<THREE.Vector3 | null>(null);
+  const prevQuatRef = useRef<THREE.Quaternion | null>(null);
 
   let rotation = new THREE.Euler(0, -Math.PI / 2, 0);
   let scale = 1;
@@ -74,16 +88,98 @@ const PlaybackPathLine: React.FC = () => {
     return currentFlightSegment[dataIndex];
   }, [currentFlightSegment, progress]);
 
+  // Orientation of the plane at the current frame, used to drive Follow/FPV cameras.
+  // `followQuat` keeps the horizon level (heading from the smoothed travel direction);
+  // `fpvQuat` uses the craft's full attitude so the view banks with roll.
+  const planeOrientation = useMemo(() => {
+    const pts = allFlightDataPoints;
+    if (pts.length < 2 || !currentPlaneData?.position) return undefined;
+    const idx = Math.min(progress, pts.length - 1);
+    const window = 3;
+    const before = pts[Math.max(0, idx - window)].position;
+    const after = pts[Math.min(pts.length - 1, idx + window)].position;
+    const forward = after.clone().sub(before);
+    if (forward.lengthSq() < 1e-6) return undefined;
+    forward.normalize();
+    const up = currentPlaneData.position.clone().sub(EARTH_CENTER).normalize();
+    const followQuat = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().lookAt(new THREE.Vector3(), forward.clone().negate(), up),
+    );
+    const headingEuler = new THREE.Euler(
+      currentPlaneData.roll ?? 0,
+      -(currentPlaneData.yaw ?? 0) - Math.PI,
+      -(currentPlaneData.pitch ?? 0),
+      'YXZ',
+    );
+    const fpvQuat = currentPlaneData.quaternion.clone().multiply(
+      new THREE.Quaternion().setFromEuler(headingEuler),
+    );
+    return { forward, up, followQuat, fpvQuat };
+  }, [allFlightDataPoints, progress, currentPlaneData]);
+
   useEffect(() => {
-    if (controlsRef && controlsRef.current && camera) {
-      if (followPlane && currentPlaneData && currentPlaneData.position) {
-        const offset = camera.position.clone().sub(controlsRef.current.target);
-        controlsRef.current.target.copy(currentPlaneData.position);
-        camera.position.copy(currentPlaneData.position).add(offset);
-        controlsRef.current.update();
-      }
+    const controls = controlsRef?.current;
+    if (!controls || !camera || !currentPlaneData?.position) return;
+    const pos = currentPlaneData.position;
+    controls.enabled = true;
+
+    // Default: trail the plane while preserving the user's world-space offset.
+    if (cameraView === 'default') {
+      framedViewRef.current = 'default';
+      prevPosRef.current = null;
+      prevQuatRef.current = null;
+      const offset = camera.position.clone().sub(controls.target);
+      controls.target.copy(pos);
+      camera.position.copy(pos).add(offset);
+      controls.update();
+      return;
     }
-  }, [currentPlaneData, controlsRef, camera, followPlane, targetCenterFromStore]);
+
+    if (!planeOrientation) return; // wait until we have a valid heading
+    const { forward, up, followQuat, fpvQuat } = planeOrientation;
+    const frameQuat = cameraView === 'fpv' ? fpvQuat : followQuat;
+
+    // First frame after entering Follow/FPV: place the camera rig once.
+    if (framedViewRef.current !== cameraView) {
+      camera.up.copy(up);
+      if (cameraView === 'follow') {
+        camera.position.copy(pos)
+          .addScaledVector(forward, -FOLLOW_DISTANCE_BACK)
+          .addScaledVector(up, FOLLOW_DISTANCE_UP);
+        controls.target.copy(pos).addScaledVector(forward, FOLLOW_LOOK_AHEAD);
+      } else {
+        camera.position.copy(pos)
+          .addScaledVector(forward, FPV_FORWARD)
+          .addScaledVector(up, FPV_UP);
+        controls.target.copy(pos).addScaledVector(forward, FPV_LOOK_AHEAD);
+      }
+      framedViewRef.current = cameraView;
+      prevPosRef.current = pos.clone();
+      prevQuatRef.current = frameQuat.clone();
+      controls.update();
+      return;
+    }
+
+    // Subsequent frames: rigidly carry camera + target with the plane's motion
+    // (translation + rotation) so the craft drives the view, while any orbiting
+    // the user did between steps is preserved within the plane's frame.
+    const prevPos = prevPosRef.current;
+    const prevQuat = prevQuatRef.current;
+    if (!prevPos || !prevQuat) {
+      prevPosRef.current = pos.clone();
+      prevQuatRef.current = frameQuat.clone();
+      return;
+    }
+    const delta = frameQuat.clone().multiply(prevQuat.clone().invert());
+    const camOffset = camera.position.clone().sub(prevPos).applyQuaternion(delta);
+    camera.position.copy(pos).add(camOffset);
+    const targetOffset = controls.target.clone().sub(prevPos).applyQuaternion(delta);
+    controls.target.copy(pos).add(targetOffset);
+    camera.up.applyQuaternion(delta).normalize();
+    prevPosRef.current = pos.clone();
+    prevQuatRef.current = frameQuat.clone();
+    controls.update();
+  }, [currentPlaneData, planeOrientation, controlsRef, camera, cameraView, targetCenterFromStore]);
 
   useEffect(() => {
     if (!groupRef.current || !selectedModel) {
