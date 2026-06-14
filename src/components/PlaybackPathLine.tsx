@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import * as THREE from 'three';
 import { useControlsContext } from '../contexts/ControlsContext';
@@ -42,6 +42,17 @@ const HEADING_WINDOW = 3;
 // up/down swings that come from vertical wobble in the flight path.
 const CAMERA_SMOOTH_TAU = 0.35;
 
+// Time constant (seconds) for the camera-position low-pass filter. The plane
+// position is piecewise-linear between data points, so its velocity jumps at
+// each point; easing the camera toward it smooths out that forward lurch.
+const CAMERA_POS_SMOOTH_TAU = 0.25;
+
+// Time constant (seconds) for the plane's own position/attitude low-pass
+// filter. Attitude angles are interpolated linearly between samples, so their
+// velocity jumps at each data point; easing the displayed plane toward the raw
+// pose tweens out that jerkiness. Kept small so the plane still tracks closely.
+const PLANE_SMOOTH_TAU = 0.12;
+
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
 // Shortest-path interpolation between two angles (radians), so attitude values
@@ -62,19 +73,36 @@ type InterpolatedPose = {
   yaw: number;
 };
 
-// Position of the flight path at a fractional index, lerped between the two
-// surrounding data points. Used both for the plane pose and for sampling a
-// continuous travel direction for the cameras.
+// Position of the flight path at a fractional index. Uses a Catmull-Rom spline
+// through the four surrounding data points so the path curves smoothly through
+// turns instead of cutting straight-line facets between samples. Used for both
+// the plane pose and for sampling a continuous travel direction for the cameras.
 const interpolatePosition = (points: PlanePoint[], t: number): THREE.Vector3 => {
   const maxIndex = points.length - 1;
   const clamped = Math.max(0, Math.min(t, maxIndex));
-  const lower = Math.floor(clamped);
-  const upper = Math.min(lower + 1, maxIndex);
-  return points[lower].position.clone().lerp(points[upper].position, clamped - lower);
+  const i = Math.floor(clamped);
+  const frac = clamped - i;
+
+  const p0 = points[Math.max(0, i - 1)].position;
+  const p1 = points[i].position;
+  const p2 = points[Math.min(maxIndex, i + 1)].position;
+  const p3 = points[Math.min(maxIndex, i + 2)].position;
+
+  // Uniform Catmull-Rom basis evaluated per component.
+  const t2 = frac * frac;
+  const t3 = t2 * frac;
+  const catmull = (a: number, b: number, c: number, d: number): number =>
+    0.5 * ((2 * b) + (-a + c) * frac + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+
+  return new THREE.Vector3(
+    catmull(p0.x, p1.x, p2.x, p3.x),
+    catmull(p0.y, p1.y, p2.y, p3.y),
+    catmull(p0.z, p1.z, p2.z, p3.z),
+  );
 };
 
-// Resolve the plane pose at a fractional index by blending the two surrounding
-// data points: position is lerped, the surface-alignment quaternion is rebuilt
+// Resolve the plane pose at a fractional index: position follows the Catmull-Rom
+// spline through the data points, the surface-alignment quaternion is rebuilt
 // from the interpolated position's normal, and the attitude angles are blended
 // along their shortest path.
 const interpolatePose = (points: PlanePoint[], t: number): InterpolatedPose => {
@@ -86,7 +114,7 @@ const interpolatePose = (points: PlanePoint[], t: number): InterpolatedPose => {
   const a = points[lower];
   const b = points[upper];
 
-  const position = a.position.clone().lerp(b.position, frac);
+  const position = interpolatePosition(points, clamped);
   const normal = position.clone().sub(EARTH_CENTER).normalize();
   const quaternion = new THREE.Quaternion().setFromUnitVectors(UP_AXIS, normal);
   return {
@@ -106,7 +134,7 @@ const PlaybackPathLine: React.FC = () => {
   const loadedLogs = useSelector((state: RootState) => state.logs.loadedLogs, isEqual);
   const targetCenterFromStore = useSelector((state: RootState) => state.logs.targetCenter);
   const terrainElevationOffset = useSelector((state: RootState) => state.ui.terrainElevationOffset);
-  const { playbackProgress: progress, progressClockRef, cameraView, selectedModel } = usePlayback();
+  const { progressClockRef, cameraView, selectedModel } = usePlayback();
   const { controlsRef } = useControlsContext();
   const { camera } = useThree();
 
@@ -118,6 +146,21 @@ const PlaybackPathLine: React.FC = () => {
   // Low-pass-filtered camera frame orientation; eased toward the raw target
   // attitude each frame so the camera does not lurch up and down on every step.
   const smoothedQuatRef = useRef<THREE.Quaternion | null>(null);
+  // Low-pass-filtered position the camera rig follows; eased toward the plane's
+  // true position so the camera does not jump forward at each data point.
+  const smoothedPosRef = useRef<THREE.Vector3 | null>(null);
+  // Low-pass-filtered pose actually rendered for the plane mesh, eased toward
+  // the raw interpolated pose so its motion and banking tween smoothly rather
+  // than changing velocity abruptly at each data point.
+  const planePosRef = useRef<THREE.Vector3 | null>(null);
+  const planeAttitudeQuatRef = useRef<THREE.Quaternion | null>(null);
+  // Scalar mirror of the plane's position lag: eased toward the raw playback
+  // clock with the same filter as the rendered plane, so the trail can end at
+  // the plane instead of running ahead of it. Drives `trailEndIndex`, which is
+  // only the integer data point so the trail geometry rebuilds at most once per
+  // step rather than every frame.
+  const planeClockRef = useRef<number | null>(null);
+  const [trailEndIndex, setTrailEndIndex] = useState(0);
 
   let rotation = new THREE.Euler(0, -Math.PI / 2, 0);
   let scale = 1;
@@ -148,12 +191,14 @@ const PlaybackPathLine: React.FC = () => {
   }, [selectedLogFilename, loadedLogs, terrainElevationOffset]);
 
   // Trail of points already flown, split into contiguous same-mode segments so
-  // it can be colour-coded by flight mode like the Stats page. Keyed off the
-  // integer progress so the geometry only rebuilds when a new data point is
-  // reached, not on every interpolated animation frame.
+  // it can be colour-coded by flight mode like the Stats page. Ends at
+  // `trailEndIndex`, the plane's lagged position, so the line stays attached to
+  // the eased plane rather than racing ahead of it. Keyed off the integer index
+  // so the geometry only rebuilds when a new data point is reached, not on every
+  // interpolated animation frame.
   const trailSegments = useMemo(() => {
     if (allFlightDataPoints.length === 0) return [];
-    const endIndex = Math.min(allFlightDataPoints.length, progress + 1);
+    const endIndex = Math.min(allFlightDataPoints.length, trailEndIndex + 1);
     const segments: { mode: string; points: THREE.Vector3[] }[] = [];
     let current: { mode: string; points: THREE.Vector3[] } | null = null;
     for (let i = 0; i < endIndex; i++) {
@@ -166,7 +211,7 @@ const PlaybackPathLine: React.FC = () => {
       }
     }
     return segments.filter(segment => segment.points.length >= 2);
-  }, [allFlightDataPoints, progress]);
+  }, [allFlightDataPoints, trailEndIndex]);
 
   const hasPlane = allFlightDataPoints.length > 0;
 
@@ -196,17 +241,51 @@ const PlaybackPathLine: React.FC = () => {
 
     const pose = interpolatePose(points, progressClockRef.current);
 
+    // Ease the rendered plane toward the raw interpolated pose with a frame-rate
+    // independent low-pass filter, so its position and banking tween smoothly
+    // instead of changing velocity abruptly at each data point.
+    const planeAlpha = 1 - Math.exp(-delta / PLANE_SMOOTH_TAU);
+    const planePos = planePosRef.current
+      ? planePosRef.current.lerp(pose.position, planeAlpha)
+      : pose.position.clone();
+    planePosRef.current = planePos;
+
+    const targetAttitude = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(pose.roll, -pose.yaw - Math.PI, -pose.pitch, 'YXZ'),
+    );
+    const planeAttitude = planeAttitudeQuatRef.current ?? targetAttitude.clone();
+    planeAttitude.slerp(targetAttitude, planeAlpha);
+    planeAttitudeQuatRef.current = planeAttitude;
+
+    // Mirror the plane's position lag as a scalar clock so the trail can end at
+    // the plane. Eased with the same alpha as the rendered position, then
+    // published as an integer data index (only when it changes) to keep the
+    // trail geometry from rebuilding every frame.
+    const planeClock = planeClockRef.current ?? progressClockRef.current;
+    const nextPlaneClock = planeClock + (progressClockRef.current - planeClock) * planeAlpha;
+    planeClockRef.current = nextPlaneClock;
+    const nextTrailEnd = Math.floor(nextPlaneClock);
+    setTrailEndIndex(prev => (prev === nextTrailEnd ? prev : nextTrailEnd));
+
     if (planeRootRef.current) {
-      planeRootRef.current.position.copy(pose.position);
+      planeRootRef.current.position.copy(planePos);
       planeRootRef.current.quaternion.copy(pose.quaternion);
     }
     if (planeAttitudeRef.current) {
-      planeAttitudeRef.current.rotation.set(pose.roll, -pose.yaw - Math.PI, -pose.pitch, 'YXZ');
+      planeAttitudeRef.current.quaternion.copy(planeAttitude);
     }
 
     const controls = controlsRef?.current;
     if (!controls || !camera) return;
-    const pos = pose.position;
+
+    // Anchor the camera to a low-pass-filtered version of the plane position so
+    // the rig glides forward instead of stepping with the path's per-point
+    // velocity changes. The plane itself still uses its exact interpolated pose.
+    const posAlpha = 1 - Math.exp(-delta / CAMERA_POS_SMOOTH_TAU);
+    const pos = smoothedPosRef.current
+      ? smoothedPosRef.current.lerp(pose.position, posAlpha)
+      : pose.position.clone();
+    smoothedPosRef.current = pos;
     controls.enabled = true;
 
     // Default: trail the plane while preserving the user's world-space offset.
@@ -297,6 +376,10 @@ const PlaybackPathLine: React.FC = () => {
     prevPosRef.current = null;
     prevQuatRef.current = null;
     smoothedQuatRef.current = null;
+    smoothedPosRef.current = null;
+    planePosRef.current = null;
+    planeAttitudeQuatRef.current = null;
+    planeClockRef.current = null;
   }, [cameraView, targetCenterFromStore]);
 
   useEffect(() => {
