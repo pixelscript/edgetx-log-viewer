@@ -103,7 +103,7 @@ export default function FileSettingsPanel() {
 
         <Checkbox
           label="Interpolate attitude"
-          description="Smooths banking for logs whose roll/pitch/yaw lags the sample rate"
+          description="Smooths playback for logs whose roll/pitch/yaw lags the sample rate"
           checked={settings.interpolateAttitude}
           onChange={(event) => update({ interpolateAttitude: event.currentTarget.checked })}
           size="sm"
