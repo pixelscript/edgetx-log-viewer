@@ -411,7 +411,9 @@ const PlaybackPathLine: React.FC = () => {
       ? smoothedPosRef.current.lerp(pose.position, posAlpha)
       : pose.position.clone();
     smoothedPosRef.current = pos;
-    controls.enabled = true;
+    // FPV is a locked cockpit view: disable orbiting so the user cannot nudge the
+    // camera out of position mid-flight. Other views stay freely adjustable.
+    controls.enabled = cameraView !== 'fpv';
 
     // Default: trail the plane while preserving the user's world-space offset.
     if (cameraView === 'default') {
@@ -429,33 +431,52 @@ const PlaybackPathLine: React.FC = () => {
     if (!heading) return; // wait until we have a valid heading
     const { forward, up } = heading;
 
+    // FPV: lock the camera onto the craft itself. Build the view orientation
+    // absolutely from the smoothed travel direction (yaw + climb/descent pitch)
+    // plus a roll bank, so it always matches the craft's attitude rather than
+    // carrying over the previous view's framing. Express it through `target` and
+    // `up` because OrbitControls derives the camera from those, not a quaternion.
+    if (cameraView === 'fpv') {
+      const lookQuat = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().lookAt(new THREE.Vector3(), forward, up),
+      );
+      const bankQuat = new THREE.Quaternion().setFromAxisAngle(forward, pose.roll);
+      const targetQuat = bankQuat.multiply(lookQuat);
+
+      // Ease toward the target orientation; smoothedQuatRef is reset on view
+      // change, so entering FPV starts from the craft's attitude, not the old view.
+      const smoothedQuat = smoothedQuatRef.current ?? targetQuat.clone();
+      const fpvAlpha = 1 - Math.exp(-delta / (CAMERA_SMOOTH_TAU * smoothScale));
+      smoothedQuat.slerp(targetQuat, fpvAlpha);
+      smoothedQuatRef.current = smoothedQuat;
+
+      const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(smoothedQuat);
+      const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(smoothedQuat);
+      camera.up.copy(camUp);
+      camera.position.copy(pos)
+        .addScaledVector(camForward, FPV_FORWARD)
+        .addScaledVector(camUp, FPV_UP);
+      controls.target.copy(pos).addScaledVector(camForward, FPV_LOOK_AHEAD);
+      controls.enabled = false;
+      framedViewRef.current = 'fpv';
+      controls.update();
+      return;
+    }
+
     // `followQuat` keeps the horizon level (heading from the smoothed travel
-    // direction); `fpvQuat` uses the craft's full attitude so the view banks
-    // with roll.
+    // direction).
     const followQuat = new THREE.Quaternion().setFromRotationMatrix(
       new THREE.Matrix4().lookAt(new THREE.Vector3(), forward.clone().negate(), up),
     );
-    const fpvQuat = pose.quaternion.clone().multiply(
-      new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(pose.roll, -pose.yaw - Math.PI, -pose.pitch, 'YXZ'),
-      ),
-    );
-    const frameQuat = cameraView === 'fpv' ? fpvQuat : followQuat;
+    const frameQuat = followQuat;
 
-    // First frame after entering Follow/FPV: place the camera rig once.
+    // First frame after entering Follow: place the camera rig once.
     if (framedViewRef.current !== cameraView) {
       camera.up.copy(up);
-      if (cameraView === 'follow') {
-        camera.position.copy(pos)
-          .addScaledVector(forward, -FOLLOW_DISTANCE_BACK)
-          .addScaledVector(up, FOLLOW_DISTANCE_UP);
-        controls.target.copy(pos).addScaledVector(forward, FOLLOW_LOOK_AHEAD);
-      } else {
-        camera.position.copy(pos)
-          .addScaledVector(forward, FPV_FORWARD)
-          .addScaledVector(up, FPV_UP);
-        controls.target.copy(pos).addScaledVector(forward, FPV_LOOK_AHEAD);
-      }
+      camera.position.copy(pos)
+        .addScaledVector(forward, -FOLLOW_DISTANCE_BACK)
+        .addScaledVector(up, FOLLOW_DISTANCE_UP);
+      controls.target.copy(pos).addScaledVector(forward, FOLLOW_LOOK_AHEAD);
       framedViewRef.current = cameraView;
       prevPosRef.current = pos.clone();
       prevQuatRef.current = frameQuat.clone();
@@ -555,7 +576,7 @@ return (
       />
     ))}
     {hasPlane && (
-      <group ref={planeRootRef}>
+      <group ref={planeRootRef} visible={cameraView !== 'fpv'}>
         <group ref={planeAttitudeRef}>
           <group rotation={userRotation}>
             <group ref={groupRef} name="plane" rotateOnAxis={[0, 1, 0]} rotation={rotation} scale={scale}></group>
